@@ -821,7 +821,7 @@ func (cdev CharDevice) QemuParams(config *Config) []string {
 	cdevParams = append(cdevParams, string(cdev.Backend))
 	cdevParams = append(cdevParams, fmt.Sprintf("id=%s", cdev.ID))
 	if cdev.Backend == Socket {
-		cdevParams = append(cdevParams, fmt.Sprintf("path=%s,server=on,wait=off", cdev.Path))
+		cdevParams = append(cdevParams, fmt.Sprintf("path=%s,server=on,wait=off,logfile=/home/jianfeng/kata-asterinas/console.log", cdev.Path))
 	} else {
 		cdevParams = append(cdevParams, fmt.Sprintf("path=%s", cdev.Path))
 	}
@@ -834,6 +834,11 @@ func (cdev CharDevice) QemuParams(config *Config) []string {
 
 	qemuParams = append(qemuParams, "-chardev")
 	qemuParams = append(qemuParams, strings.Join(cdevParams, ","))
+
+	qemuParams = append(qemuParams, "-serial")
+	qemuParams = append(qemuParams, "file:/home/jianfeng/kata-asterinas/qemu-serial.log")
+
+	// qemuParams = append(qemuParams, "-serial file:/home/jianfeng/kata-asterinas/qemu-serial.log")
 
 	return qemuParams
 }
