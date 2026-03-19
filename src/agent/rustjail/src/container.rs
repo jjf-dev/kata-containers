@@ -352,8 +352,12 @@ pub fn init_child() {
 }
 
 fn do_init_child(cwfd: RawFd) -> Result<()> {
+    println!("do init child, cwfd = {:?}", cwfd);
+
     lazy_static::initialize(&NAMESPACES);
     lazy_static::initialize(&DEFAULT_DEVICES);
+
+    println!("init namespaces, cwfd = {:?}", cwfd);
 
     let init = std::env::var(INIT)?.eq(format!("{}", true).as_str());
 
@@ -377,6 +381,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
         }
     }
 
+    println!("before fork");
+
     match unsafe { fork() } {
         Ok(ForkResult::Parent { child, .. }) => {
             log_child!(
@@ -396,24 +402,29 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
             )));
         }
     }
+
+    println!("child process start run");
     log_child!(cfd_log, "child process start run");
     let buf = read_sync(crfd)?;
     let spec_str = std::str::from_utf8(&buf)?;
     let spec: oci::Spec = serde_json::from_str(spec_str)?;
     log_child!(cfd_log, "notify parent to send oci process");
     write_sync(cwfd, SYNC_SUCCESS, "")?;
+    println!("notify parent to send oci process 111");
 
     let buf = read_sync(crfd)?;
     let process_str = std::str::from_utf8(&buf)?;
     let oci_process: oci::Process = serde_json::from_str(process_str)?;
     log_child!(cfd_log, "notify parent to send oci state");
     write_sync(cwfd, SYNC_SUCCESS, "")?;
+    println!("notify parent to send oci process 222");
 
     let buf = read_sync(crfd)?;
     let state_str = std::str::from_utf8(&buf)?;
     let mut state: OCIState = serde_json::from_str(state_str)?;
     log_child!(cfd_log, "notify parent to send cgroup manager");
     write_sync(cwfd, SYNC_SUCCESS, "")?;
+    println!("notify parent to send cgroup manager");
 
     let buf = read_sync(crfd)?;
     let cm_str = std::str::from_utf8(&buf)?;
@@ -421,6 +432,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
     // deserialize cm_str into FsManager and SystemdManager separately
     let fs_cm: Result<FsManager, serde_json::Error> = serde_json::from_str(cm_str);
     let systemd_cm: Result<SystemdManager, serde_json::Error> = serde_json::from_str(cm_str);
+
+    println!("start setup console socket");
 
     #[cfg(feature = "standard-oci-runtime")]
     let csocket_fd = console::setup_console_socket(&std::env::var(CONSOLE_SOCKET_FD)?)?;
@@ -438,6 +451,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
 
     // get namespace vector to join/new
     let nses = get_namespaces(linux);
+
+    println!("nses = {:?}", nses);
 
     let mut userns = false;
     let mut to_new = CloneFlags::empty();
@@ -474,9 +489,14 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
         }
     }
 
+    println!("to new = {:?}", to_new);
+
     if to_new.contains(CloneFlags::CLONE_NEWUSER) {
         userns = true;
     }
+
+    println!("userns = {}", userns);
+    println!("write oom score adj");
 
     if p.oom_score_adj().is_some() {
         log_child!(cfd_log, "write oom score {}", p.oom_score_adj().unwrap());
@@ -485,6 +505,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
             p.oom_score_adj().unwrap().to_string().as_bytes(),
         )?;
     }
+
+    println!("set rlimit");
 
     // set rlimit
     let default_rlimits = Vec::new();
@@ -497,6 +519,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
             Rlim::from_raw(rl.hard()),
         )?;
     }
+
+    println!("set non-dumpable");
 
     //
     // Make the process non-dumpable, to avoid various race conditions that
@@ -516,9 +540,12 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
     }
 
     if userns {
+        println!("enter new user namespace");
         log_child!(cfd_log, "enter new user namespace");
         sched::unshare(CloneFlags::CLONE_NEWUSER)?;
     }
+
+    println!("notify parent unshare user ns completed");
 
     log_child!(cfd_log, "notify parent unshare user ns completed");
     // notify parent unshare user ns completed.
@@ -585,6 +612,7 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
 
     let rootfs = spec.root().as_ref().unwrap().path().display().to_string();
 
+    println!("setup rootfs {}", &rootfs);
     log_child!(cfd_log, "setup rootfs {}", &rootfs);
     let root = fs::canonicalize(&rootfs)?;
     let rootfs = root.to_str().unwrap();
@@ -604,6 +632,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
             mount::init_rootfs(cfd_log, &spec, &fs_cm.paths, &fs_cm.mounts, bind_device)?;
         }
     }
+
+    println!("notify parent to run prestart hooks");
 
     if init {
         // notify parent to run prestart hooks
@@ -639,6 +669,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
             )?;
         }
     }
+
+    println!("start pivot root");
 
     if to_new.contains(CloneFlags::CLONE_NEWNS) {
         // unistd::chroot(rootfs)?;
@@ -778,6 +810,8 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
     }
 
     let exec_file = Path::new(&args[0]);
+
+    println!( "process command: {:?}", &args);
     log_child!(cfd_log, "process command: {:?}", &args);
     if !exec_file.exists() {
         find_file(exec_file).ok_or_else(|| anyhow!("the file {} was not found", &args[0]))?;
@@ -785,6 +819,7 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
 
     // notify parent that the child's ready to start
     write_sync(cwfd, SYNC_SUCCESS, "")?;
+    println!("ready to run exec");
     log_child!(cfd_log, "ready to run exec");
     let _ = unistd::close(cfd_log);
     let _ = unistd::close(crfd);
@@ -1175,7 +1210,7 @@ impl BaseContainer for LinuxContainer {
             .env(CWFD_FD, format!("{cwfd}"))
             .env(CLOG_FD, format!("{cfd_log}"))
             .env(CONSOLE_SOCKET_FD, console_name)
-            .env(PIDNS_ENABLED, format!("{}", pidns.enabled));
+            .env(PIDNS_ENABLED, format!("{}", false));
 
         if p.init {
             child = child.env(FIFO_FD, format!("{fifofd}"));

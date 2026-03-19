@@ -126,7 +126,7 @@ lazy_static! {
     static ref AGENT_POLICY: Mutex<AgentPolicy> = Mutex::new(AgentPolicy::new());
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 // The default clap version info doesn't match our form, so we need to override it
 #[clap(disable_version_flag = true)]
 struct AgentOpts {
@@ -140,7 +140,7 @@ struct AgentOpts {
     config: Option<String>,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 enum SubCommand {
     Init {},
 }
@@ -190,6 +190,8 @@ async fn real_main(init_mode: bool) -> std::result::Result<(), Box<dyn std::erro
     // List of tasks that need to be stopped for a clean shutdown
     let mut tasks: Vec<JoinHandle<Result<()>>> = vec![];
 
+    println!("initialize console");
+
     console::initialize();
 
     // support vsock log
@@ -224,6 +226,8 @@ async fn real_main(init_mode: bool) -> std::result::Result<(), Box<dyn std::erro
     } else {
         lazy_static::initialize(&AGENT_CONFIG);
     }
+
+    println!("after init mode");
 
     let config = &AGENT_CONFIG;
     let log_vport = config.log_vport as u32;
@@ -271,8 +275,11 @@ async fn real_main(init_mode: bool) -> std::result::Result<(), Box<dyn std::erro
         passfd_io::start_listen(passfd_listener_port).await?;
     }
 
+    println!("start sandbox");
     // Start the sandbox and wait for its ttRPC server to end
     start_sandbox(&logger, config, init_mode, &mut tasks, shutdown_rx.clone()).await?;
+
+    println!("ttRPC server runs to end");
 
     // Install a NOP logger for the remainder of the shutdown sequence
     // to ensure any log calls made by local crates using the scope logger
@@ -321,6 +328,14 @@ async fn real_main(init_mode: bool) -> std::result::Result<(), Box<dyn std::erro
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let args = AgentOpts::parse();
 
+    println!("args = {:?}", args);
+
+    let env_args: Vec<String> = std::env::args().collect();
+    println!("argc: {}", env_args.len());
+    for (i, env_arg) in env_args.iter().enumerate() {
+        println!("argv[{}]: {}", i, env_arg);
+    }
+
     if args.version {
         let extra_features = features::get_build_features();
 
@@ -334,18 +349,27 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         exit(0);
     }
 
+    println!("agent init: subcmd = {:?}", args.subcmd);
+
     if let Some(SubCommand::Init {}) = args.subcmd {
         reset_sigpipe();
+        println!("init child");
         rustjail::container::init_child();
         exit(0);
     }
+
+    println!("tokio build runtime");
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
 
+    println!("run real main");
+
     let init_mode = unistd::getpid() == Pid::from_raw(1);
     let result = rt.block_on(real_main(init_mode));
+
+    println!("run main result = {:?}", result);
 
     if init_mode {
         sync();
@@ -375,11 +399,16 @@ async fn start_sandbox(
         tasks.push(debug_console_task);
     }
 
+    println!("crate new unique sandbox");
     // Initialize unique sandbox structure.
     let s = Sandbox::new(logger).context("Failed to create sandbox")?;
+    println!("crate new unique sandbox success");
     if init_mode {
-        s.rtnl.handle_localhost().await?;
+        println!("handle localhost");
+        // s.rtnl.handle_localhost().await?;
+        println!("handle localhost sueecss");
     }
+    println!("before initialize agent policy");
 
     #[cfg(feature = "agent-policy")]
     if let Err(e) = initialize_policy().await {
@@ -387,6 +416,8 @@ async fn start_sandbox(
         // Continuing execution without a security policy could be dangerous.
         std::process::abort();
     }
+
+    println!("1111111");
 
     let sandbox = Arc::new(Mutex::new(s));
 
@@ -398,14 +429,22 @@ async fn start_sandbox(
 
     tasks.push(signal_handler_task);
 
+    println!("222222");
+
     let uevents_handler_task = tokio::spawn(watch_uevents(sandbox.clone(), shutdown.clone()));
 
     tasks.push(uevents_handler_task);
 
+    println!("333333");
+
     let (tx, rx) = tokio::sync::oneshot::channel();
     sandbox.lock().await.sender = Some(tx);
 
+    println!("4444444");
+
     let initdata_return_value = initdata::initialize_initdata(logger).await?;
+
+    println!("5555555");
 
     let gc_procs = config.guest_components_procs;
     if !attestation_binaries_available(logger, &gc_procs) {
@@ -416,6 +455,8 @@ async fn start_sandbox(
     } else {
         init_attestation_components(logger, config, &initdata_return_value).await?;
     }
+
+    println!("6666666");
 
     // if policy is given via initdata, use it
     #[cfg(feature = "agent-policy")]
@@ -431,6 +472,8 @@ async fn start_sandbox(
         }
     }
 
+    println!("7777777");
+
     let mut oma = None;
     let mut _ort = None;
     if let Some(c) = &config.mem_agent {
@@ -445,15 +488,21 @@ async fn start_sandbox(
         _ort = Some(rt);
     }
 
+    println!("rpc start");
     // vsock:///dev/vsock, port
     let mut server =
         rpc::start(sandbox.clone(), config.server_addr.as_str(), init_mode, oma).await?;
 
+    println!("server start");
     server.start().await?;
 
+    println!("wait rx");
     rx.await?;
+
+    println!("shutdown server");
     server.shutdown().await?;
 
+    println!("start sandbox returns");
     Ok(())
 }
 

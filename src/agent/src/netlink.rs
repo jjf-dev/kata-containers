@@ -222,6 +222,7 @@ impl Handle {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn handle_localhost(&self) -> Result<()> {
         let link = self.find_link(LinkFilter::Name("lo")).await?;
         self.enable_link(link.index(), true).await?;

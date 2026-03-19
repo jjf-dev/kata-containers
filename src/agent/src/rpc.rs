@@ -200,6 +200,7 @@ impl AgentService {
         &self,
         req: protocols::agent::CreateContainerRequest,
     ) -> Result<()> {
+        println!("agent service do create container");
         // create the proc_io first, in case there's some error occur below, thus we can make sure
         // the io stream closed when error occur.
         let proc_io = if AGENT_CONFIG.passfd_listener_port != 0 {
@@ -804,6 +805,7 @@ impl agent_ttrpc::AgentService for AgentService {
         ctx: &TtrpcContext,
         req: protocols::agent::CreateContainerRequest,
     ) -> ttrpc::Result<Empty> {
+        println!("agent service: create container");
         trace_rpc_call!(ctx, "create_container", req);
         is_allowed(&req).await?;
         self.do_create_container(req).await.map_ttrpc_err(same)?;
