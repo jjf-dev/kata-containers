@@ -46,6 +46,12 @@ where
                     Err(e) => return Err(e),
                 };
 
+                println!(
+                    "vsock copy bytes={} text={:?}",
+                    bytes,
+                    String::from_utf8_lossy(&buf[..bytes]),
+                );
+
                 total_bytes += bytes as u64;
 
                 // Actually copy the data ;)

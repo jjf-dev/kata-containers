@@ -92,8 +92,19 @@ async fn write_span(
     NetworkEndian::write_u64(&mut payload_len_as_bytes, payload_len);
 
     // Send the header
+    println!(
+        "vsock send trace header bytes={} raw={:?}",
+        payload_len_as_bytes.len(),
+        payload_len_as_bytes
+    );
     writer.write_all(&payload_len_as_bytes).await?;
 
+    println!(
+        "vsock send trace payload bytes={} text={:?} raw={:?}",
+        encoded_payload.len(),
+        String::from_utf8_lossy(&encoded_payload),
+        encoded_payload
+    );
     writer.write_all(&encoded_payload).await
 }
 

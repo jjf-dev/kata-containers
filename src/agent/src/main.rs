@@ -179,6 +179,7 @@ async fn create_logger_task(rfd: RawFd, vsock_port: u32, shutdown: Receiver<bool
         Box::new(tokio::io::stdout())
     };
 
+    println!("create logger tast: send to host");
     let _ = util::interruptable_io_copier(&mut reader, &mut writer, shutdown).await;
 
     Ok(())
