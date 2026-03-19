@@ -264,7 +264,7 @@ get_package_version_from_kata_yaml()
 		source "$yq_file"
 	fi
 
-	yq_version=$($yq -V)
+	yq_version=$($yq --version)
 	case $yq_version in
 	*"version "[1-3]*)
 		yq_args="r -X - ${yq_path}"

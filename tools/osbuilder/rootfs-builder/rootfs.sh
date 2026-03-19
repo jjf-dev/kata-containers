@@ -487,8 +487,8 @@ build_rootfs_distro()
 			${engine_build_args} \
 			--build-arg http_proxy="${http_proxy}" \
 			--build-arg https_proxy="${https_proxy}" \
-			--build-arg RUST_TOOLCHAIN="$(get_package_version_from_kata_yaml  "languages.rust.meta.newest-version")" \
-			--build-arg GO_VERSION="$(get_package_version_from_kata_yaml  "languages.golang.version")" \
+			--build-arg RUST_TOOLCHAIN="1.91" \
+			--build-arg GO_VERSION="1.25.8" \
 			-t "${image_name}" "${distro_config_dir}"
 
 		# fake mapping if KERNEL_MODULES_DIR is unset
