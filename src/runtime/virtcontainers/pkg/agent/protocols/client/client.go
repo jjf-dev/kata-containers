@@ -247,6 +247,22 @@ func logVsockPayload(direction, connType, target string, payload []byte, err err
 		entry = entry.WithError(err)
 	}
 
+	record := TraceRecord{
+		Layer:     "transport",
+		Direction: direction,
+		Type:      connType,
+		Target:    target,
+		Length:    len(payload),
+	}
+	if len(payload) > 0 {
+		record.Data = strconv.QuoteToASCII(string(payload))
+		record.Hex = hex.EncodeToString(payload)
+	}
+	if err != nil {
+		record.Error = err.Error()
+	}
+	WriteTraceRecord(record)
+
 	entry.Info("vsock payload")
 }
 

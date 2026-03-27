@@ -68,7 +68,7 @@ use crate::sync::{read_sync, write_count, write_sync, SYNC_DATA, SYNC_FAILED, SY
 use crate::sync_with_async::{read_async, write_async};
 use async_trait::async_trait;
 use rlimit::{setrlimit, Resource, Rlim};
-use tokio::io::AsyncBufReadExt;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 
 use kata_sys_util::hooks::HookStates;
@@ -1099,7 +1099,25 @@ impl BaseContainer for LinuxContainer {
                     let logger = logger.clone();
                     let term_closer = term_closer.clone();
                     tokio::spawn(async move {
-                        let res = tokio::io::copy(&mut stdin_stream, &mut term_master).await;
+                        let res = async {
+                            let mut total = 0u64;
+                            let mut buf = [0u8; 8192];
+                            loop {
+                                let bytes = stdin_stream.read(&mut buf).await?;
+                                if bytes == 0 {
+                                    break Ok::<u64, std::io::Error>(total);
+                                }
+                                println!(
+                                    "vsock recv container tty stdin bytes={} text={:?} raw={:?}",
+                                    bytes,
+                                    String::from_utf8_lossy(&buf[..bytes]),
+                                    &buf[..bytes]
+                                );
+                                term_master.write_all(&buf[..bytes]).await?;
+                                total += bytes as u64;
+                            }
+                        }
+                        .await;
                         debug!(logger, "copy from stdin to term_master end: {:?}", res);
 
                         std::mem::forget(term_master); // Avoid auto closing of term_master
@@ -1114,7 +1132,29 @@ impl BaseContainer for LinuxContainer {
                     let logger = logger.clone();
                     let term_closer = term_closer;
                     tokio::spawn(async move {
-                        let res = tokio::io::copy(&mut term_master, &mut stdout_stream).await;
+                        let res = async {
+                            let mut total = 0u64;
+                            let mut buf = [0u8; 8192];
+                            loop {
+                                let bytes = term_master.read(&mut buf).await?;
+                                if bytes == 0 {
+                                    break Ok::<u64, std::io::Error>(total);
+                                }
+                                println!(
+                                    "vsock send container tty stdout bytes={} text={:?} raw={:?}",
+                                    bytes,
+                                    String::from_utf8_lossy(&buf[..bytes]),
+                                    &buf[..bytes]
+                                );
+                                tokio::io::AsyncWriteExt::write_all(
+                                    &mut stdout_stream,
+                                    &buf[..bytes],
+                                )
+                                .await?;
+                                total += bytes as u64;
+                            }
+                        }
+                        .await;
                         debug!(logger, "copy from term_master to stdout end: {:?}", res);
                         wgw_output.done();
                         std::mem::forget(term_master); // Avoid auto closing of term_master
@@ -1140,7 +1180,25 @@ impl BaseContainer for LinuxContainer {
                     let mut parent_stdin = unsafe { File::from_raw_fd(p.parent_stdin.unwrap()) };
                     let logger = logger.clone();
                     tokio::spawn(async move {
-                        let res = tokio::io::copy(&mut stdin_stream, &mut parent_stdin).await;
+                        let res = async {
+                            let mut total = 0u64;
+                            let mut buf = [0u8; 8192];
+                            loop {
+                                let bytes = stdin_stream.read(&mut buf).await?;
+                                if bytes == 0 {
+                                    break Ok::<u64, std::io::Error>(total);
+                                }
+                                println!(
+                                    "vsock recv container stdin bytes={} text={:?} raw={:?}",
+                                    bytes,
+                                    String::from_utf8_lossy(&buf[..bytes]),
+                                    &buf[..bytes]
+                                );
+                                parent_stdin.write_all(&buf[..bytes]).await?;
+                                total += bytes as u64;
+                            }
+                        }
+                        .await;
                         debug!(logger, "copy from stdin to term_master end: {:?}", res);
                     });
                 }
@@ -1152,7 +1210,29 @@ impl BaseContainer for LinuxContainer {
                     let mut parent_stdout = unsafe { File::from_raw_fd(p.parent_stdout.unwrap()) };
                     let logger = logger.clone();
                     tokio::spawn(async move {
-                        let res = tokio::io::copy(&mut parent_stdout, &mut stdout_stream).await;
+                        let res = async {
+                            let mut total = 0u64;
+                            let mut buf = [0u8; 8192];
+                            loop {
+                                let bytes = parent_stdout.read(&mut buf).await?;
+                                if bytes == 0 {
+                                    break Ok::<u64, std::io::Error>(total);
+                                }
+                                println!(
+                                    "vsock send container stdout bytes={} text={:?} raw={:?}",
+                                    bytes,
+                                    String::from_utf8_lossy(&buf[..bytes]),
+                                    &buf[..bytes]
+                                );
+                                tokio::io::AsyncWriteExt::write_all(
+                                    &mut stdout_stream,
+                                    &buf[..bytes],
+                                )
+                                .await?;
+                                total += bytes as u64;
+                            }
+                        }
+                        .await;
                         debug!(
                             logger,
                             "copy from parent_stdout to stdout stream end: {:?}", res
@@ -1168,7 +1248,29 @@ impl BaseContainer for LinuxContainer {
                     let mut parent_stderr = unsafe { File::from_raw_fd(p.parent_stderr.unwrap()) };
                     let logger = logger.clone();
                     tokio::spawn(async move {
-                        let res = tokio::io::copy(&mut parent_stderr, &mut stderr_stream).await;
+                        let res = async {
+                            let mut total = 0u64;
+                            let mut buf = [0u8; 8192];
+                            loop {
+                                let bytes = parent_stderr.read(&mut buf).await?;
+                                if bytes == 0 {
+                                    break Ok::<u64, std::io::Error>(total);
+                                }
+                                println!(
+                                    "vsock send container stderr bytes={} text={:?} raw={:?}",
+                                    bytes,
+                                    String::from_utf8_lossy(&buf[..bytes]),
+                                    &buf[..bytes]
+                                );
+                                tokio::io::AsyncWriteExt::write_all(
+                                    &mut stderr_stream,
+                                    &buf[..bytes],
+                                )
+                                .await?;
+                                total += bytes as u64;
+                            }
+                        }
+                        .await;
                         debug!(
                             logger,
                             "copy from parent_stderr to stderr stream end: {:?}", res

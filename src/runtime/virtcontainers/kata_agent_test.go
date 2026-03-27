@@ -29,6 +29,7 @@ import (
 	volume "github.com/kata-containers/kata-containers/src/runtime/pkg/direct-volume"
 	"github.com/kata-containers/kata-containers/src/runtime/virtcontainers/persist"
 	pbTypes "github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/agent/protocols"
+	kataclient "github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/agent/protocols/client"
 	pb "github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/agent/protocols/grpc"
 	vcAnnotations "github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/annotations"
 	"github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/mock"
@@ -188,6 +189,45 @@ func TestKataAgentSendReq(t *testing.T) {
 
 	_, err = k.getOOMEvent(ctx)
 	assert.Nil(err)
+}
+
+func TestKataAgentTraceWritesFile(t *testing.T) {
+	assert := assert.New(t)
+
+	_ = os.Remove(kataclient.VSockTraceFilePath)
+	t.Cleanup(func() {
+		_ = os.Remove(kataclient.VSockTraceFilePath)
+	})
+
+	k := &kataAgent{
+		ctx:      context.Background(),
+		client:   &kataclient.AgentClient{},
+		keepConn: true,
+		state: KataAgentState{
+			URL: "vsock://3:1024",
+		},
+		reqHandlers: map[string]reqFunc{
+			grpcCheckRequest: func(ctx context.Context, req interface{}) (interface{}, error) {
+				return &pb.HealthCheckResponse{}, nil
+			},
+		},
+	}
+
+	_, err := k.sendReq(context.Background(), &pb.CheckRequest{})
+	assert.NoError(err)
+
+	_, err = k.readProcessStream("ReadStdout", "sandbox", "execid", []byte{}, func(ctx context.Context, req *pb.ReadStreamRequest) (*pb.ReadStreamResponse, error) {
+		return &pb.ReadStreamResponse{}, nil
+	})
+	assert.ErrorIs(err, io.EOF)
+
+	data, err := os.ReadFile(kataclient.VSockTraceFilePath)
+	assert.NoError(err)
+
+	content := string(data)
+	assert.Contains(content, `"layer":"rpc"`)
+	assert.Contains(content, `"method":"grpc.CheckRequest"`)
+	assert.Contains(content, `"method":"ReadStdout"`)
 }
 
 func TestHandleEphemeralStorage(t *testing.T) {

@@ -2464,11 +2464,25 @@ func (k *kataAgent) sendReq(spanCtx context.Context, request interface{}) (inter
 		return nil, err
 	}
 	k.Logger().WithField("name", msgName).WithField("req", string(jsonStr)).Trace("sending request")
+	kataclient.WriteTraceRecord(kataAgentTraceRecord("request", k.state.URL, msgName, string(jsonStr), nil))
 
 	defer func() {
 		agentRPCDurationsHistogram.WithLabelValues(msgName).Observe(float64(time.Since(start).Nanoseconds() / int64(time.Millisecond)))
 	}()
-	return handler(ctx, request)
+	resp, err := handler(ctx, request)
+
+	respJSON := ""
+	traceErr := err
+	if respMsg, ok := resp.(proto.Message); ok && respMsg != nil {
+		if buf, marshalErr := protojson.Marshal(respMsg); marshalErr == nil {
+			respJSON = string(buf)
+		} else if traceErr == nil {
+			traceErr = fmt.Errorf("trace marshal response: %w", marshalErr)
+		}
+	}
+	kataclient.WriteTraceRecord(kataAgentTraceRecord("response", k.state.URL, msgName, respJSON, traceErr))
+
+	return resp, err
 }
 
 // readStdout and readStderr are special that we cannot differentiate them with the request types...
@@ -2480,7 +2494,7 @@ func (k *kataAgent) readProcessStdout(ctx context.Context, c *Container, process
 		defer k.disconnect(ctx)
 	}
 
-	return k.readProcessStream(c.id, processID, data, k.client.AgentServiceClient.ReadStdout)
+	return k.readProcessStream("ReadStdout", c.id, processID, data, k.client.AgentServiceClient.ReadStdout)
 }
 
 // readStdout and readStderr are special that we cannot differentiate them with the request types...
@@ -2492,18 +2506,42 @@ func (k *kataAgent) readProcessStderr(ctx context.Context, c *Container, process
 		defer k.disconnect(ctx)
 	}
 
-	return k.readProcessStream(c.id, processID, data, k.client.AgentServiceClient.ReadStderr)
+	return k.readProcessStream("ReadStderr", c.id, processID, data, k.client.AgentServiceClient.ReadStderr)
 }
 
 type readFn func(context.Context, *grpc.ReadStreamRequest) (*grpc.ReadStreamResponse, error)
 
-func (k *kataAgent) readProcessStream(containerID, processID string, data []byte, read readFn) (int, error) {
-	resp, err := read(k.ctx, &grpc.ReadStreamRequest{
+func kataAgentTraceRecord(direction, target, method, data string, err error) kataclient.TraceRecord {
+	record := kataclient.TraceRecord{
+		Layer:     "rpc",
+		Direction: direction,
+		Target:    target,
+		Method:    method,
+		Data:      data,
+	}
+	if err != nil {
+		record.Error = err.Error()
+	}
+	return record
+}
+
+func (k *kataAgent) readProcessStream(method, containerID, processID string, data []byte, read readFn) (int, error) {
+	req := &grpc.ReadStreamRequest{
 		ContainerId: containerID,
 		ExecId:      processID,
-		Len:         uint32(len(data))})
+		Len:         uint32(len(data)),
+	}
+	if reqJSON, err := protojson.Marshal(req); err == nil {
+		kataclient.WriteTraceRecord(kataAgentTraceRecord("request", k.state.URL, method, string(reqJSON), nil))
+	}
+
+	resp, err := read(k.ctx, req)
 	if err != nil {
+		kataclient.WriteTraceRecord(kataAgentTraceRecord("response", k.state.URL, method, "", err))
 		return 0, err
+	}
+	if respJSON, marshalErr := protojson.Marshal(resp); marshalErr == nil {
+		kataclient.WriteTraceRecord(kataAgentTraceRecord("response", k.state.URL, method, string(respJSON), nil))
 	}
 
 	if len(resp.Data) == 0 {
