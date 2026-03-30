@@ -70,6 +70,7 @@ macro_rules! trace_rpc_call {
         });
 
         info!(sl(), "rpc call from shim to agent: {:?}", $name);
+        crate::rpc::print_vsock_rpc_request($name, &$req);
 
         // generate tracing span
         let rpc_span = span!(tracing::Level::INFO, $name, "mod"="rpc.rs", req=?$req);
