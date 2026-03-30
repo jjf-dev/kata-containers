@@ -97,6 +97,8 @@ runtime-spec = { path = "../libs/runtime-spec" }
 safe-path = { path = "../libs/safe-path" }
 test-utils = { path = "../libs/test-utils" }
 
+[patch.crates-io]
+ttrpc = { path = "vendor-ttrpc" }
 
 [package]
 name = "kata-agent"
