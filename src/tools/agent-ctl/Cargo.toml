@@ -31,7 +31,7 @@ protobuf = "3.2.0"
 nix = "0.26.4"
 libc = "0.2.112"
 # XXX: Must be the same as the version used by the agent
-ttrpc = "0.8.4"
+ttrpc = "0.9.0"
 
 # For parsing timeouts
 humantime = "2.1.0"
