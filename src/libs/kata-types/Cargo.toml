@@ -11,7 +11,7 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-bitmask-enum = "2.1.0"
+bitmask-enum = "2.2.5"
 anyhow = "1.0"
 base64 = "0.13.0"
 byte-unit = "5.1.6"
