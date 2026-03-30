@@ -644,8 +644,25 @@ fn online_resources(logger: &Logger, path: &str, pattern: &str, num: i32) -> Res
 
 #[instrument]
 fn online_memory(logger: &Logger) -> Result<()> {
-    online_resources(logger, SYSFS_MEMORY_ONLINE_PATH, r"memory[0-9]+", -1)
-        .context("online memory resource")?;
+    match online_resources(logger, SYSFS_MEMORY_ONLINE_PATH, r"memory[0-9]+", -1) {
+        Ok(_) => {}
+        Err(err) => {
+            if err
+                .downcast_ref::<std::io::Error>()
+                .is_some_and(|io_err| io_err.kind() == std::io::ErrorKind::NotFound)
+            {
+                warn!(
+                    logger,
+                    "memory sysfs path {} is unavailable, skip online memory",
+                    SYSFS_MEMORY_ONLINE_PATH
+                );
+                return Ok(());
+            }
+
+            return Err(err).context("online memory resource");
+        }
+    }
+
     Ok(())
 }
 
