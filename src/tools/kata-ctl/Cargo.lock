@@ -56,7 +56,7 @@ dependencies = [
  "slog-scope",
  "tokio",
  "tracing",
- "ttrpc",
+ "ttrpc 0.9.0",
  "url",
 ]
 
@@ -283,6 +283,28 @@ dependencies = [
  "signal-hook-registry",
  "slab",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "async-stream"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5a71a6f37880a80d1d7f19efd781e4b5de42c88f0722cc13bcb6cc2cfe8476"
+dependencies = [
+ "async-stream-impl",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "async-stream-impl"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
 ]
 
 [[package]]
@@ -677,7 +699,7 @@ checksum = "de174e763d62b6b1aaed7d9ec7f21369e18d4f4098ae1f11f2ea1a3eb4a31c61"
 dependencies = [
  "async-trait",
  "protobuf",
- "ttrpc",
+ "ttrpc 0.8.6",
  "ttrpc-codegen",
 ]
 
@@ -1617,7 +1639,7 @@ dependencies = [
  "thiserror 1.0.50",
  "tokio",
  "tracing",
- "ttrpc",
+ "ttrpc 0.9.0",
  "ttrpc-codegen",
  "vmm-sys-util 0.11.2",
 ]
@@ -1968,9 +1990,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.172"
+version = "0.2.183"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
+checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "libredox"
@@ -2289,6 +2311,19 @@ name = "nix"
 version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
+dependencies = [
+ "bitflags 2.9.0",
+ "cfg-if 1.0.0",
+ "cfg_aliases",
+ "libc",
+ "memoffset 0.9.1",
+]
+
+[[package]]
+name = "nix"
+version = "0.31.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d6d0705320c1e6ba1d912b5e37cf18071b6c2e9b7fa8215a1e8a7651966f5d3"
 dependencies = [
  "bitflags 2.9.0",
  "cfg-if 1.0.0",
@@ -2904,7 +2939,7 @@ dependencies = [
  "protobuf",
  "serde",
  "serde_json",
- "ttrpc",
+ "ttrpc 0.8.6",
  "ttrpc-codegen",
 ]
 
@@ -4261,7 +4296,20 @@ dependencies = [
  "futures",
  "libc",
  "tokio",
- "vsock",
+ "vsock 0.3.0",
+]
+
+[[package]]
+name = "tokio-vsock"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b319ef9394889dab2e1b4f0085b45ba11d0c79dc9d1a9d1afc057d009d0f1c7"
+dependencies = [
+ "bytes",
+ "futures",
+ "libc",
+ "tokio",
+ "vsock 0.5.3",
 ]
 
 [[package]]
@@ -4348,9 +4396,9 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 
 [[package]]
 name = "ttrpc"
-version = "0.8.4"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c580c498a547b4c083ec758be543e11a0772e03013aef4cdb1fbe77c8b62cae"
+checksum = "bf85d9a9e7a0a32232cb5beb2a58e37661ef67d39a12af483ae575c6a27ad8a1"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -4364,7 +4412,29 @@ dependencies = [
  "protobuf-codegen",
  "thiserror 1.0.50",
  "tokio",
- "tokio-vsock",
+ "tokio-vsock 0.4.0",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "ttrpc"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f12efe237328bbe3b3b50503627f7cc9e74cfae34ffa8438561916623cd8f50"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "byteorder",
+ "crossbeam",
+ "futures",
+ "libc",
+ "log",
+ "nix 0.26.4",
+ "protobuf",
+ "protobuf-codegen",
+ "thiserror 1.0.50",
+ "tokio",
+ "tokio-vsock 0.7.2",
  "windows-sys 0.48.0",
 ]
 
@@ -4572,6 +4642,16 @@ checksum = "4c8e1df0bf1e1b28095c24564d1b90acae64ca69b097ed73896e342fa6649c57"
 dependencies = [
  "libc",
  "nix 0.24.3",
+]
+
+[[package]]
+name = "vsock"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b82aeb12ad864eb8cd26a6c21175d0bdc66d398584ee6c93c76964c3bcfc78ff"
+dependencies = [
+ "libc",
+ "nix 0.31.2",
 ]
 
 [[package]]
