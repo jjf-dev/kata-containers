@@ -595,7 +595,17 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
     sched::unshare(to_new & !CloneFlags::CLONE_NEWUSER)?;
 
     if cgroups::hierarchies::is_cgroup2_unified_mode() {
-        sched::unshare(CloneFlags::CLONE_NEWCGROUP)?;
+        if let Err(e) = sched::unshare(CloneFlags::CLONE_NEWCGROUP) {
+            if e == Errno::EINVAL {
+                log_child!(
+                    cfd_log,
+                    "skip cgroup namespace unshare because it is unsupported: {:?}",
+                    e
+                );
+            } else {
+                return Err(anyhow!(e));
+            }
+        }
     }
 
     if userns {
@@ -678,7 +688,22 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
             mount::ms_move_root(rootfs)?;
         } else {
             // pivot root
-            mount::pivot_rootfs(rootfs)?;
+            if let Err(err) = mount::pivot_rootfs(rootfs) {
+                let should_fallback = err.chain().any(|cause| {
+                    cause
+                        .downcast_ref::<Errno>()
+                        .is_some_and(|errno| *errno == Errno::EINVAL)
+                });
+                if should_fallback {
+                    log_child!(
+                        cfd_log,
+                        "pivot_root returned EINVAL, fallback to MS_MOVE rootfs"
+                    );
+                    mount::ms_move_root(rootfs)?;
+                } else {
+                    return Err(err);
+                }
+            }
         }
 
         // setup sysctl

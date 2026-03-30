@@ -209,7 +209,7 @@ pub fn init_rootfs(
         .to_str()
         .ok_or_else(|| anyhow!("Could not convert rootfs path to string"))?;
 
-    mount(None::<&str>, "/", None::<&str>, flags, None::<&str>)?;
+    apply_mount_propagation("/", flags)?;
 
     rootfs_parent_mount_private(rootfs)?;
 
@@ -541,13 +541,7 @@ pub fn pivot_rootfs<P: ?Sized + NixPath + std::fmt::Debug>(path: &P) -> Result<(
     // to races where we still have a reference to a mount while a process in
     // the host namespace are trying to operate on something they think has no
     // mounts (devicemapper in particular).
-    mount(
-        Some("none"),
-        ".",
-        Some(""),
-        MsFlags::MS_SLAVE | MsFlags::MS_REC,
-        Some(""),
-    )?;
+    apply_mount_propagation(".", MsFlags::MS_SLAVE | MsFlags::MS_REC)?;
 
     // Preform the unmount. MNT_DETACH allows us to unmount /proc/self/cwd.
     umount2(".", MntFlags::MNT_DETACH).context("failed to do umount2")?;
@@ -688,13 +682,7 @@ pub fn ms_move_root(rootfs: &str) -> Result<bool> {
         }
 
         // Be sure umount events are not propagated to the host.
-        mount(
-            None::<&str>,
-            abs_mount_point,
-            None::<&str>,
-            MsFlags::MS_SLAVE | MsFlags::MS_REC,
-            None::<&str>,
-        )?;
+        apply_mount_propagation(abs_mount_point, MsFlags::MS_SLAVE | MsFlags::MS_REC)?;
         umount2(abs_mount_point, MntFlags::MNT_DETACH).or_else(|e| {
             if e.ne(&nix::Error::EINVAL) && e.ne(&nix::Error::EPERM) {
                 return Err(anyhow!(e));
@@ -750,6 +738,23 @@ fn parse_mount(m: &Mount) -> (MsFlags, MsFlags, String) {
     }
 
     (flags, pgflags, data.join(","))
+}
+
+fn apply_mount_propagation<P: ?Sized + NixPath>(target: &P, flags: MsFlags) -> Result<()> {
+    match mount(None::<&str>, target, None::<&str>, flags, None::<&str>) {
+        Ok(()) => Ok(()),
+        Err(e)
+            if e == Errno::EINVAL
+                && flags.intersects(MsFlags::MS_SLAVE | MsFlags::MS_SHARED | MsFlags::MS_UNBINDABLE) =>
+        {
+            let fallback_flags =
+                (flags & !(MsFlags::MS_SLAVE | MsFlags::MS_SHARED | MsFlags::MS_UNBINDABLE))
+                    | MsFlags::MS_PRIVATE;
+            mount(None::<&str>, target, None::<&str>, fallback_flags, None::<&str>)
+                .map_err(Into::into)
+        }
+        Err(e) => Err(e.into()),
+    }
 }
 
 fn mount_from(
@@ -852,14 +857,26 @@ fn mount_from(
         }
     }
 
-    mount(
+    let mount_result = mount(
         Some(src.as_str()),
         dest.as_str(),
         Some(mount_typ.as_str()),
         flags,
         Some(d.as_str()).filter(|s| !s.is_empty()),
-    )
-    .inspect_err(|e| log_child!(cfd_log, "mount error: {:?}", e))?;
+    );
+    if let Err(e) = mount_result {
+        log_child!(cfd_log, "mount error: {:?}", e);
+        if mount_typ == "mqueue" && e == Errno::ENODEV {
+            log_child!(
+                cfd_log,
+                "skip unsupported mqueue mount source={} dest={}",
+                src.as_str(),
+                dest.as_str()
+            );
+            return Ok(());
+        }
+        return Err(e.into());
+    }
 
     if !label.is_empty() && selinux::is_enabled()? && use_xattr {
         xattr::set(dest.as_str(), "security.selinux", label.as_bytes())?;
