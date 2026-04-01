@@ -709,7 +709,27 @@ fn init_agent_as_init(logger: &Logger, unified_cgroup_hierarchy: bool) -> Result
     fs::remove_file(Path::new("/dev/ptmx"))?;
     unixfs::symlink(Path::new("/dev/pts/ptmx"), Path::new("/dev/ptmx"))?;
 
+    let current_pid = unistd::getpid();
+    println!(
+        "setsid 4 before pid={} pgid(0)={} pgid({})={} sid({})={}",
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(0) },
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(current_pid.as_raw()) },
+        current_pid.as_raw(),
+        unsafe { libc::getsid(current_pid.as_raw()) }
+    );
     unistd::setsid()?;
+    let current_pid = unistd::getpid();
+    println!(
+        "setsid 4 after pid={} pgid(0)={} pgid({})={} sid({})={}",
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(0) },
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(current_pid.as_raw()) },
+        current_pid.as_raw(),
+        unsafe { libc::getsid(current_pid.as_raw()) }
+    );
 
     unsafe {
         libc::ioctl(std::io::stdin().as_raw_fd(), libc::TIOCSCTTY, 1);

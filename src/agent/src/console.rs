@@ -133,7 +133,28 @@ pub async fn debug_console_handler(
 
 fn run_in_child(slave_fd: libc::c_int, shell: String) -> Result<()> {
     // create new session with child as session leader
+    let current_pid = unistd::getpid();
+    println!(
+        "setsid 1 before pid={} pgid(0)={} pgid({})={} sid({})={}",
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(0) },
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(current_pid.as_raw()) },
+        current_pid.as_raw(),
+        unsafe { libc::getsid(current_pid.as_raw()) }
+    );
     setsid()?;
+
+    let current_pid = unistd::getpid();
+    println!(
+        "setsid 1 after pid={} pgid(0)={} pgid({})={} sid({})={}",
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(0) },
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(current_pid.as_raw()) },
+        current_pid.as_raw(),
+        unsafe { libc::getsid(current_pid.as_raw()) }
+    );
 
     // dup stdin, stdout, stderr to let child act as a terminal
     dup2(slave_fd, STDIN_FILENO)?;

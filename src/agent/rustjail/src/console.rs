@@ -40,7 +40,27 @@ pub fn setup_master_console(socket_fd: RawFd) -> Result<()> {
 
     socket::sendmsg::<()>(socket_fd, &iov, &[cmsg], socket::MsgFlags::empty(), None)?;
 
+    let current_pid = unistd::getpid();
+    println!(
+        "setsid 2 before pid={} pgid(0)={} pgid({})={} sid({})={}",
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(0) },
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(current_pid.as_raw()) },
+        current_pid.as_raw(),
+        unsafe { libc::getsid(current_pid.as_raw()) }
+    );
     unistd::setsid()?;
+    let current_pid = unistd::getpid();
+    println!(
+        "setsid 2 after pid={} pgid(0)={} pgid({})={} sid({})={}",
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(0) },
+        current_pid.as_raw(),
+        unsafe { libc::getpgid(current_pid.as_raw()) },
+        current_pid.as_raw(),
+        unsafe { libc::getsid(current_pid.as_raw()) }
+    );
     let ret = unsafe { libc::ioctl(pseudo.slave, libc::TIOCSCTTY) };
     Errno::result(ret).map_err(|e| anyhow!(e).context("ioctl TIOCSCTTY"))?;
 

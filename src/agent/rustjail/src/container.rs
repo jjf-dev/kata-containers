@@ -860,7 +860,27 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
                 }
             }
             else {
+                let current_pid = unistd::getpid();
+                println!(
+                    "setsid 3 before pid={} pgid(0)={} pgid({})={} sid({})={}",
+                    current_pid.as_raw(),
+                    unsafe { libc::getpgid(0) },
+                    current_pid.as_raw(),
+                    unsafe { libc::getpgid(current_pid.as_raw()) },
+                    current_pid.as_raw(),
+                    unsafe { libc::getsid(current_pid.as_raw()) }
+                );
                 unistd::setsid().context("create a new session")?;
+                let current_pid = unistd::getpid();
+                println!(
+                    "setsid 3 after pid={} pgid(0)={} pgid({})={} sid({})={}",
+                    current_pid.as_raw(),
+                    unsafe { libc::getpgid(0) },
+                    current_pid.as_raw(),
+                    unsafe { libc::getpgid(current_pid.as_raw()) },
+                    current_pid.as_raw(),
+                    unsafe { libc::getsid(current_pid.as_raw()) }
+                );
                 unsafe { libc::ioctl(0, libc::TIOCSCTTY) };
             }
         }
