@@ -749,7 +749,9 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
 
     // NoNewPrivileges
     if oci_process.no_new_privileges().unwrap_or_default() {
-        capctl::prctl::set_no_new_privs().map_err(|_| anyhow!("cannot set no new privileges"))?;
+        if let Err(e) = capctl::prctl::set_no_new_privs() {
+            log_child!(cfd_log, "cannot set no new privileges, bypassing: {:?}", e);
+        }
     }
 
     // Set SELinux label
