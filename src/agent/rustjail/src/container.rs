@@ -472,16 +472,29 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
                 to_new.set(*s, true);
             }
         } else {
-            let fd = fcntl::open(ns.path().as_ref().unwrap(), OFlag::O_CLOEXEC, Mode::empty())
-                .inspect_err(|e| {
+            let ns_path = ns.path().as_ref().unwrap();
+            let fd = match fcntl::open(ns_path, OFlag::O_CLOEXEC, Mode::empty()) {
+                Ok(fd) => fd,
+                Err(e) => {
                     log_child!(
                         cfd_log,
                         "cannot open type: {} path: {}",
                         &ns.typ().to_string(),
-                        ns.path().as_ref().unwrap().display()
+                        ns_path.display()
                     );
-                    log_child!(cfd_log, "error is : {:?}", e)
-                })?;
+                    log_child!(cfd_log, "error is : {:?}", e);
+
+                    if *s == CloneFlags::CLONE_NEWPID && e == Errno::ENOENT {
+                        log_child!(
+                            cfd_log,
+                            "pid namespace path missing in child, bypassing pidns join"
+                        );
+                        continue;
+                    }
+
+                    return Err(e.into());
+                }
+            };
 
             if *s != CloneFlags::CLONE_NEWPID {
                 to_join.push((*s, fd));
@@ -1331,7 +1344,10 @@ impl BaseContainer for LinuxContainer {
         let pidns = get_pid_namespace(&self.logger, linux)?;
         #[cfg(not(feature = "standard-oci-runtime"))]
         if !pidns.enabled {
-            return Err(anyhow!("cannot find the pid ns"));
+            warn!(
+                self.logger,
+                "pid ns unavailable for exec, continuing without pidns join"
+            );
         }
 
         defer!(if let Some(fd) = pidns.fd {
@@ -1630,20 +1646,30 @@ fn get_pid_namespace(logger: &Logger, linux: &Linux) -> Result<PidNs> {
         if &ns.typ().to_string() == "pid" {
             let fd = match ns.path() {
                 None => return Ok(PidNs::new(true, None)),
-                Some(ns_path) => fcntl::open(
+                Some(ns_path) => match fcntl::open(
                     ns_path.display().to_string().as_str(),
                     OFlag::O_RDONLY,
                     Mode::empty(),
-                )
-                .inspect_err(|e| {
-                    error!(
-                        logger,
-                        "cannot open type: {} path: {}",
-                        &ns.typ().to_string(),
-                        ns_path.display()
-                    );
-                    error!(logger, "error is : {:?}", e)
-                })?,
+                ) {
+                    Ok(fd) => fd,
+                    Err(e) => {
+                        error!(
+                            logger,
+                            "cannot open type: {} path: {}",
+                            &ns.typ().to_string(),
+                            ns_path.display()
+                        );
+                        error!(logger, "error is : {:?}", e);
+                        if e == Errno::ENOENT {
+                            warn!(
+                                logger,
+                                "pid namespace path missing, bypassing pidns join for exec"
+                            );
+                            return Ok(PidNs::new(false, None));
+                        }
+                        return Err(e.into());
+                    }
+                },
             };
 
             return Ok(PidNs::new(true, Some(fd)));
