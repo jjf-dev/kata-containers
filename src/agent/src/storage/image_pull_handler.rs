@@ -46,6 +46,11 @@ impl StorageHandler for ImagePullHandler {
         storage: Storage,
         ctx: &mut StorageContext,
     ) -> Result<Arc<dyn StorageDevice>> {
+        eprintln!(
+            "received pull image request from kata-runtime, storage source: {}, mount_point: {}",
+            storage.source(),
+            storage.mount_point
+        );
         //Currently the image metadata is not used to pulling image in the guest.
         let image_pull_volume = Self::get_image_info(&storage)?;
         debug!(ctx.logger, "image_pull_volume = {:?}", image_pull_volume);

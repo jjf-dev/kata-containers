@@ -1142,12 +1142,18 @@ impl agent_ttrpc::AgentService for AgentService {
         finish_vsock_rpc("tty_win_resize", result)
     }
 
+    #[allow(unreachable_code, unused_variables)]
     async fn update_interface(
         &self,
         ctx: &TtrpcContext,
         req: protocols::agent::UpdateInterfaceRequest,
     ) -> ttrpc::Result<Interface> {
         trace_rpc_call!(ctx, "update_interface", req);
+        return Ok(
+            req.interface
+                .into_option()
+                .map_ttrpc_err(ttrpc::Code::INVALID_ARGUMENT, "empty update interface request")?,
+        );
         let result = async {
             is_allowed(&req).await?;
 
@@ -1195,12 +1201,14 @@ impl agent_ttrpc::AgentService for AgentService {
         finish_vsock_rpc("update_interface", result)
     }
 
+    #[allow(unreachable_code, unused_variables)]
     async fn update_routes(
         &self,
         ctx: &TtrpcContext,
         req: protocols::agent::UpdateRoutesRequest,
     ) -> ttrpc::Result<Routes> {
         trace_rpc_call!(ctx, "update_routes", req);
+        return Ok(protocols::agent::Routes::new());
         let result = async {
             is_allowed(&req).await?;
 
@@ -1540,12 +1548,14 @@ impl agent_ttrpc::AgentService for AgentService {
         finish_vsock_rpc("destroy_sandbox", result)
     }
 
+    #[allow(unreachable_code, unused_variables)]
     async fn add_arp_neighbors(
         &self,
         ctx: &TtrpcContext,
         req: protocols::agent::AddARPNeighborsRequest,
     ) -> ttrpc::Result<Empty> {
         trace_rpc_call!(ctx, "add_arp_neighbors", req);
+        return Ok(Empty::new());
         let result = async {
             is_allowed(&req).await?;
 

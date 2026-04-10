@@ -124,6 +124,11 @@ impl CDHClient {
     }
 
     pub async fn pull_image(&self, image: &str, bundle_path: &str) -> Result<()> {
+        eprintln!(
+            "sending pull image request to confidential-data-hub, image: {}, bundle_path: {}",
+            image,
+            bundle_path
+        );
         let req = confidential_data_hub::ImagePullRequest {
             image_url: image.to_string(),
             bundle_path: bundle_path.to_string(),
@@ -138,6 +143,9 @@ impl CDHClient {
             )
             .await?;
 
+        eprintln!(
+            "confidential-data-hub pull image completed successfully, image: {}", image
+        );
         Ok(())
     }
 }
