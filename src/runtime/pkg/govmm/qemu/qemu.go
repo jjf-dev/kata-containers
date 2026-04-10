@@ -863,6 +863,9 @@ const (
 	// TAP is a TAP networking device type.
 	TAP NetDeviceType = "tap"
 
+	// USER is a user-mode networking device type.
+	USER NetDeviceType = "user"
+
 	// MACVTAP is a macvtap networking device type.
 	MACVTAP NetDeviceType = "macvtap"
 
@@ -888,6 +891,8 @@ func (n NetDeviceType) QemuNetdevParam(netdev *NetDevice, config *Config) string
 	switch n {
 	case TAP:
 		return "tap"
+	case USER:
+		return "user"
 	case MACVTAP:
 		return "tap"
 	case IPVTAP:
@@ -920,6 +925,8 @@ func (n NetDeviceType) QemuDeviceParam(netdev *NetDevice, config *Config) Device
 
 	switch n {
 	case TAP:
+		device = "virtio-net"
+	case USER:
 		device = "virtio-net"
 	case MACVTAP:
 		device = "virtio-net"
@@ -1014,15 +1021,17 @@ var VirtioNetTransport = map[VirtioTransport]string{
 
 // Valid returns true if the NetDevice structure is valid and complete.
 func (netdev NetDevice) Valid() bool {
-	if netdev.ID == "" || netdev.IFName == "" {
+	if netdev.ID == "" {
 		return false
 	}
 
 	switch netdev.Type {
 	case TAP:
+		return netdev.IFName != ""
+	case USER:
 		return true
 	case MACVTAP:
-		return true
+		return netdev.IFName != ""
 	default:
 		return false
 	}
@@ -1079,6 +1088,23 @@ func (netdev NetDevice) QemuDeviceParams(config *Config) []string {
 		deviceParams = append(deviceParams, s)
 	}
 
+	if netdev.Type == USER && driver == VirtioNetPCI {
+		deviceParams = append(deviceParams,
+			"disable-legacy=on",
+			"mrg_rxbuf=off",
+			"ctrl_rx=off",
+			"ctrl_rx_extra=off",
+			"ctrl_vlan=off",
+			"ctrl_vq=off",
+			"ctrl_guest_offloads=off",
+			"ctrl_mac_addr=off",
+			"event_idx=off",
+			"queue_reset=off",
+			"guest_announce=off",
+			"indirect_desc=off",
+		)
+	}
+
 	if len(netdev.FDs) > 0 {
 		// Note: We are appending to the device params here
 		deviceParams = append(deviceParams, netdev.mqParameter(config))
@@ -1133,12 +1159,14 @@ func (netdev NetDevice) QemuNetdevParams(config *Config) []string {
 		netdevParams = append(netdevParams, fmt.Sprintf("fds=%s", strings.Join(fdParams, ":")))
 
 	} else {
-		netdevParams = append(netdevParams, fmt.Sprintf("ifname=%s", netdev.IFName))
-		if netdev.DownScript != "" {
-			netdevParams = append(netdevParams, fmt.Sprintf("downscript=%s", netdev.DownScript))
-		}
-		if netdev.Script != "" {
-			netdevParams = append(netdevParams, fmt.Sprintf("script=%s", netdev.Script))
+		if netdev.Type != USER {
+			netdevParams = append(netdevParams, fmt.Sprintf("ifname=%s", netdev.IFName))
+			if netdev.DownScript != "" {
+				netdevParams = append(netdevParams, fmt.Sprintf("downscript=%s", netdev.DownScript))
+			}
+			if netdev.Script != "" {
+				netdevParams = append(netdevParams, fmt.Sprintf("script=%s", netdev.Script))
+			}
 		}
 	}
 	return netdevParams

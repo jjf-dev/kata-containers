@@ -492,6 +492,13 @@ func (n *LinuxNetwork) Run(ctx context.Context, cb func() error) error {
 	span, _ := n.trace(ctx, "Run")
 	defer span.End()
 
+	// For the "none" model we skip entering the pod netns and run the
+	// callback in the current namespace. This keeps the QEMU process in the
+	// host netns when we pair "none" with an explicit QEMU user-net NIC.
+	if n.interworkingModel == NetXConnectNoneModel {
+		return cb()
+	}
+
 	return doNetNS(n.netNSPath, func(_ ns.NetNS) error {
 		return cb()
 	})

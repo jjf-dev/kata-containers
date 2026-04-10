@@ -213,6 +213,9 @@ type HypervisorConfig struct {
 
 	// EnableVhostUserStore is used to indicate if host supports vhost-user-blk/scsi
 	EnableVhostUserStore bool
+
+	// UseQemuUserNet explicitly adds a QEMU user-net NIC to the guest.
+	UseQemuUserNet bool
 }
 
 // KataAgentConfig is a structure storing information needed

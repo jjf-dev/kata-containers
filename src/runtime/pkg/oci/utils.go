@@ -156,6 +156,9 @@ type RuntimeConfig struct {
 	// Determines if create a netns for hypervisor process
 	DisableNewNetNs bool
 
+	// UseQemuUserNet explicitly adds a QEMU user-net NIC to the guest.
+	UseQemuUserNet bool
+
 	//Determines kata processes are managed only in sandbox cgroup
 	SandboxCgroupOnly bool
 

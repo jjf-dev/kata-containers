@@ -181,6 +181,7 @@ type hypervisor struct {
 
 type runtime struct {
 	InterNetworkModel         string   `toml:"internetworking_model"`
+	UseQemuUserNet            bool     `toml:"use_qemu_user_net"`
 	JaegerEndpoint            string   `toml:"jaeger_endpoint"`
 	JaegerUser                string   `toml:"jaeger_user"`
 	JaegerPassword            string   `toml:"jaeger_password"`
@@ -1051,6 +1052,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		DisableSeLinux:           h.DisableSeLinux,
 		DisableGuestSeLinux:      h.DisableGuestSeLinux,
 		ExtraMonitorSocket:       extraMonitorSocket,
+		UseQemuUserNet:           false,
 		SnpIdBlock:               h.SnpIdBlock,
 		SnpIdAuth:                h.SnpIdAuth,
 		SnpGuestPolicy:           h.SnpGuestPolicy,
@@ -1556,6 +1558,7 @@ func GetDefaultHypervisorConfig() vc.HypervisorConfig {
 		DisableSeccomp:           defaultDisableSeccomp,
 		DisableGuestSeLinux:      defaultDisableGuestSeLinux,
 		LegacySerial:             defaultLegacySerial,
+		UseQemuUserNet:           false,
 	}
 }
 
@@ -1647,6 +1650,7 @@ func LoadConfiguration(configPath string, ignoreLogging bool) (resolvedConfigPat
 	config.StaticSandboxResourceMgmt = tomlConf.Runtime.StaticSandboxResourceMgmt
 	config.SandboxCgroupOnly = tomlConf.Runtime.SandboxCgroupOnly
 	config.DisableNewNetNs = tomlConf.Runtime.DisableNewNetNs
+	config.HypervisorConfig.UseQemuUserNet = tomlConf.Runtime.UseQemuUserNet
 	config.EnablePprof = tomlConf.Runtime.EnablePprof
 	config.JaegerEndpoint = tomlConf.Runtime.JaegerEndpoint
 	config.JaegerUser = tomlConf.Runtime.JaegerUser

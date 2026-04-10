@@ -21,6 +21,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +30,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/rootless"
 
 	govmmQemu "github.com/kata-containers/kata-containers/src/runtime/pkg/govmm/qemu"
@@ -1186,6 +1188,41 @@ func (q *qemu) StartVM(ctx context.Context, timeout int) error {
 			}
 		}()
 
+	}
+
+	if q.config.UseQemuUserNet {
+		q.qemuConfig.Devices = append(q.qemuConfig.Devices, govmmQemu.NetDevice{
+			Type:          govmmQemu.USER,
+			Driver:        govmmQemu.VirtioNetPCI,
+			ID:            "user-network-0",
+			MACAddress:    "02:00:00:00:00:02",
+			DisableModern: false,
+			VHost:         false,
+		})
+	}
+
+	if q.config.UseQemuUserNet {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		curNS, err := ns.GetCurrentNS()
+		if err != nil {
+			return fmt.Errorf("failed to get current netns: %w", err)
+		}
+		defer curNS.Close()
+
+		hostNS, err := ns.GetNS("/proc/1/ns/net")
+		if err != nil {
+			return fmt.Errorf("failed to get host netns: %w", err)
+		}
+		defer hostNS.Close()
+
+		if err := hostNS.Set(); err != nil {
+			return fmt.Errorf("failed to switch to host netns: %w", err)
+		}
+		defer func() {
+			_ = curNS.Set()
+		}()
 	}
 
 	qemuCmd, reader, err := govmmQemu.LaunchQemu(q.qemuConfig, newQMPLogger())

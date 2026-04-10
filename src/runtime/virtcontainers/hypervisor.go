@@ -845,6 +845,9 @@ type HypervisorConfig struct {
 	// ExtraMonitorSocket allows to add an extra HMP or QMP socket when the VMM is Qemu
 	ExtraMonitorSocket govmmQemu.MonitorProtocol
 
+	// UseQemuUserNet explicitly adds a QEMU user-net NIC to the guest.
+	UseQemuUserNet bool
+
 	// QgsPort defines Intel Quote Generation Service port exposed from the host
 	QgsPort uint32
 
