@@ -490,9 +490,7 @@ runtime class will **NOT** work in this mode - and vice versa.
 Upstream Kata CI runs the CUDA vectorAdd test, a composite attestation test,
 and a basic NIM/RAG deployment. Running CI tests for the TEE GPU scenario
 requires KBS to be deployed (except for the CUDA vectorAdd test). The best
-place to get started running these tests locally is to look into our
-[NVIDIA CI workflow manifest](https://github.com/kata-containers/kata-containers/blob/main/.github/workflows/run-k8s-tests-on-nvidia-gpu.yaml)
-and into the underling
+place to get started running these tests locally is to look into the
 [run_kubernetes_nv_tests.sh](https://github.com/kata-containers/kata-containers/blob/main/tests/integration/kubernetes/run_kubernetes_nv_tests.sh)
 script. For example, to run the CUDA vectorAdd scenario against the TEE GPU
 runtime class use the following commands:

@@ -50,29 +50,20 @@ action runs.
 > [!NOTE]
 > Admin permission is needed to complete this task.
 
-### Wait for the `VERSION` bump PR payload publish to complete
-
-To reduce the chance of need to re-run the release workflow, check the [CI |
-Publish Kata Containers
-payload](https://github.com/kata-containers/kata-containers/actions/workflows/payload-after-push.yaml)
-once the `VERSION` PR bump has merged to check that the assets build correctly
-and are cached, so that the release process can just download these artifacts
-rather than needing to build them all, which takes time and can reveal errors in
-infra.
-
 ### Check GitHub Actions
 
 We make use of [GitHub actions](https://github.com/features/actions) in the
-[release](https://github.com/kata-containers/kata-containers/actions/workflows/release.yaml)
-file from the `kata-containers/kata-containers` repository to build and upload
-release artifacts.
+[release-asterinas](https://github.com/kata-containers/kata-containers/actions/workflows/release-asterinas.yaml)
+workflow from the `kata-containers/kata-containers` repository to build and upload
+Asterinas release artifacts.
 
 > [!NOTE]
 > Write permissions to trigger the action.
 
-The action is manually triggered and is responsible for generating a new release
-(including a new tag), pushing those to the `kata-containers/kata-containers`
-repository. The new release is initially created as a draft. It is promoted to
+The action is manually triggered and is responsible for generating or updating an
+Asterinas bundle release (including a release tag when needed) in the
+`kata-containers/kata-containers` repository. The new release is initially
+created as a draft. It is promoted to
 an official release when the whole workflow has completed successfully.
 
 Check the [actions status
