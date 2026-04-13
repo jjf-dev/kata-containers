@@ -59,7 +59,7 @@ jobs:
     name: Build Asterinas kernel
     runs-on: ubuntu-22.04
     container:
-      image: ${{ env.ASTERINAS_BUILDER_IMAGE }}
+      image: ${{ inputs.asterinas_builder_image || 'asterinas/asterinas:0.17.1-20260319' }}
     steps:
       - name: Check out Asterinas
         uses: actions/checkout@v4
