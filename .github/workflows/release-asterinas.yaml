@@ -153,13 +153,40 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Derive release metadata
+        id: release
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch) }}
+        env:
+          WORKFLOW_RELEASE_TAG: ${{ inputs.release_tag }}
+          WORKFLOW_RELEASE_NAME: ${{ inputs.release_name }}
+          WORKFLOW_DRAFT_RELEASE: ${{ inputs.draft_release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(<VERSION)"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            release_tag="${WORKFLOW_RELEASE_TAG}"
+            release_name="${WORKFLOW_RELEASE_NAME}"
+            draft_release="${WORKFLOW_DRAFT_RELEASE}"
+          else
+            release_tag="${version}-asterinas"
+            release_name="Asterinas Kata ${version}"
+            draft_release="false"
+          fi
+
+          echo "tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "name=${release_name}" >> "${GITHUB_OUTPUT}"
+          echo "draft=${draft_release}" >> "${GITHUB_OUTPUT}"
+
       - name: Publish GitHub release
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch) }}
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          RELEASE_NAME: ${{ inputs.release_name }}
-          DRAFT_RELEASE: ${{ inputs.draft_release }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_NAME: ${{ steps.release.outputs.name }}
+          DRAFT_RELEASE: ${{ steps.release.outputs.draft }}
           RELEASE_ASSET: ${{ steps.bundle.outputs.release_asset }}
           MANIFEST_FILE: ${{ steps.bundle.outputs.manifest_file }}
           CHECKSUMS_FILE: ${{ steps.bundle.outputs.checksums_file }}
@@ -178,6 +205,16 @@ jobs:
           )
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            edit_draft_flag=(--draft=false)
+            if [[ "${DRAFT_RELEASE}" == "true" ]]; then
+              edit_draft_flag=(--draft)
+            fi
+
+            gh release edit "${RELEASE_TAG}" \
+              --title "${title}" \
+              --notes-file "${RELEASE_NOTES}" \
+              --target "${GITHUB_SHA}" \
+              "${edit_draft_flag[@]}"
             gh release upload "${RELEASE_TAG}" "${asset_args[@]}" --clobber
           else
             draft_flag=()
