@@ -68,8 +68,41 @@ emit_output() {
 	fi
 }
 
-append_summary() {
-	printf '%s\n' "$*" >> "${BUILD_SUMMARY}"
+write_build_summary() {
+	local display_name
+	local i
+	local indent
+	local name
+	local path
+	local slash_prefix
+	local target
+
+	{
+		printf '# Package contents\n\n'
+		printf '```text\n'
+		printf '.\n'
+
+		while IFS= read -r -d '' path; do
+			name="${path##*/}"
+			slash_prefix="${path//[^\/]/}"
+			indent=""
+			for ((i = 0; i < ${#slash_prefix}; i++)); do
+				indent+="    "
+			done
+
+			display_name="${name}"
+			if [ -L "${STAGING_DIR}/${path}" ]; then
+				target="$(readlink "${STAGING_DIR}/${path}")"
+				display_name="${display_name} -> ${target}"
+			elif [ -d "${STAGING_DIR}/${path}" ]; then
+				display_name="${display_name}/"
+			fi
+
+			printf '%s%s\n' "${indent}" "${display_name}"
+		done < <(cd "${STAGING_DIR}" && find . -mindepth 1 -printf '%P\0' | sort -z)
+
+		printf '```\n'
+	} > "${BUILD_SUMMARY}"
 }
 
 infer_guest_rootfs() {
@@ -125,7 +158,6 @@ maybe_build_runtime() {
 		return 0
 	fi
 
-	append_summary "- Rebuilding \`kata-runtime\`: ${RUNTIME_REBUILD_REASON}"
 	make -C "${repo_root_dir}/src/runtime" build
 	make -C "${repo_root_dir}/src/runtime" PREFIX=/opt/kata DESTDIR="${STAGING_DIR}" install
 }
@@ -200,7 +232,7 @@ write_release_notes() {
 EOF
 }
 
-require_cmd curl git make readlink sed sudo tar zstd sha256sum install cpio
+require_cmd awk curl find git make readlink sed sort sudo tar zstd sha256sum install cpio
 [ -n "${ASTERINAS_KERNEL}" ] || die "ASTERINAS_KERNEL must be set"
 [ -f "${ASTERINAS_KERNEL}" ] || die "Asterinas kernel artifact not found: ${ASTERINAS_KERNEL}"
 
@@ -211,20 +243,8 @@ mkdir -p "${STAGING_DIR}"
 BUILD_TIME_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 KATA_COMMIT="$(git -C "${repo_root_dir}" rev-parse HEAD)"
 
-: > "${BUILD_SUMMARY}"
-append_summary "# Asterinas Kata release build"
-append_summary
-append_summary "- Time (UTC): \`${BUILD_TIME_UTC}\`"
-append_summary "- Kata version: \`${VERSION}\`"
-append_summary "- Kata commit: \`${KATA_COMMIT}\`"
-append_summary "- Base tarball URL: \`${BASE_TARBALL_URL}\`"
-append_summary "- Asterinas repo/ref: \`${ASTERINAS_REPOSITORY}@${ASTERINAS_REF}\`"
-append_summary "- Asterinas builder image: \`${ASTERINAS_BUILDER_IMAGE}\`"
-
-append_summary "- Downloading official Kata base tarball"
 curl --fail --location --silent --show-error "${BASE_TARBALL_URL}" --output "${BASE_TARBALL}"
 
-append_summary "- Extracting base tarball into staging"
 tar -I zstd -xf "${BASE_TARBALL}" -C "${STAGING_DIR}"
 
 share_dir="${STAGING_DIR}/${KATA_SHARE_DIR_REL}"
@@ -243,23 +263,17 @@ else
 	initrd_target_name="kata-containers-initrd.img"
 fi
 infer_guest_rootfs "${initrd_target_name}"
-append_summary "- Rebuilding initrd from \`${GUEST_OS_NAME}:${GUEST_OS_VERSION}\` rootfs"
 
 rebuilt_initrd="${BUILD_ROOT}/${initrd_target_name}"
 build_initrd "${rebuilt_initrd}"
 install -m 0644 "${rebuilt_initrd}" "${share_dir}/${initrd_target_name}"
 
-append_summary "- Installing Asterinas guest kernel"
 install -m 0755 "${ASTERINAS_KERNEL}" "${share_dir}/aster-kernel-osdk-bin.qemu_elf"
 ln -sfn "aster-kernel-osdk-bin.qemu_elf" "${share_dir}/vmlinuz.container"
 ln -sfn "aster-kernel-osdk-bin.qemu_elf" "${share_dir}/vmlinux.container"
 
 maybe_build_runtime
-if ! is_true "${RUNTIME_REBUILT}"; then
-	append_summary "- Reusing official \`kata-runtime\` binaries"
-fi
 
-append_summary "- Creating default Asterinas configs"
 patch_qemu_config "${defaults_dir}/configuration-qemu.toml" "${defaults_dir}/configuration-asterinas.toml"
 ln -sfn "configuration-asterinas.toml" "${defaults_dir}/configuration.toml"
 
@@ -270,7 +284,6 @@ if [ -f "${runtime_rs_defaults_dir}/configuration-qemu-runtime-rs.toml" ]; then
 	ln -sfn "configuration-asterinas-runtime-rs.toml" "${runtime_rs_defaults_dir}/configuration.toml"
 fi
 
-append_summary "- Packaging release asset"
 tar \
 	--sort=name \
 	--owner=0 \
@@ -283,6 +296,7 @@ tar \
 
 write_manifest
 write_release_notes
+write_build_summary
 sha256sum "${RELEASE_ASSET}" "${MANIFEST_FILE}" "${BUILD_SUMMARY}" "${RELEASE_NOTES}" > "${CHECKSUMS_FILE}"
 
 cat "${BUILD_SUMMARY}" >> "${GITHUB_STEP_SUMMARY:-/dev/null}" 2>/dev/null || true
