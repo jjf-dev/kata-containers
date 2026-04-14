@@ -205,7 +205,7 @@ prune_asterinas_bundle() {
 		"${runtime_rs_defaults_dir}"
 
 	for path in "${defaults_dir}"/*; do
-		[ -e "${path}" ] || continue
+		[ -e "${path}" ] || [ -L "${path}" ] || continue
 		case "$(basename "${path}")" in
 			configuration.toml|configuration-asterinas.toml|configuration-qemu.toml)
 				;;
@@ -216,7 +216,7 @@ prune_asterinas_bundle() {
 	done
 
 	for path in "${share_dir}"/*; do
-		[ -e "${path}" ] || continue
+		[ -e "${path}" ] || [ -L "${path}" ] || continue
 		keep=false
 		case "$(basename "${path}")" in
 			aster-kernel-osdk-bin.qemu_elf|\
