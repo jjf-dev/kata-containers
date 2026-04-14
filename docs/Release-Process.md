@@ -59,13 +59,14 @@ Asterinas release artifacts.
 
 The action can be started manually with
 [`workflow_dispatch`](https://docs.github.com/actions/using-workflows/manually-running-a-workflow)
-or automatically by a push to the default branch. It is responsible for
-generating or updating an Asterinas bundle release (including a release tag when
-needed) in the `kata-containers/kata-containers` repository.
+or automatically by any push. It is responsible for generating or updating an
+Asterinas bundle release (including a release tag when needed) in the
+`kata-containers/kata-containers` repository.
 
 Manual runs may choose a custom release tag/name and can keep the GitHub release
-as a draft. Push-triggered runs update the `<VERSION>-asterinas` release
-automatically and publish it immediately.
+as a draft. Push-triggered runs publish a `<VERSION>-<YYYYMMDD>-asterinas`
+release automatically; if that release tag already exists, the workflow skips
+publishing for that duplicate push build.
 
 Check the [actions status
 page](https://github.com/kata-containers/kata-containers/actions) to verify all
