@@ -37,6 +37,9 @@ RELEASE_NOTES="${DIST_DIR}/${RELEASE_BASENAME}.release-notes.md"
 
 KATA_SHARE_DIR_REL="opt/kata/share/kata-containers"
 KATA_DEFAULTS_DIR_REL="opt/kata/share/defaults/kata-containers"
+ASTERINAS_KERNEL_PATH="/opt/kata/share/kata-containers/aster-kernel-osdk-bin.qemu_elf"
+INITRD_PATH="/opt/kata/share/kata-containers/kata-containers-initrd.img"
+LINUX_TEST_KERNEL_LINK="vmlinux-test.container"
 
 die() {
 	echo >&2 "ERROR: $*"
@@ -128,13 +131,109 @@ infer_guest_rootfs() {
 patch_qemu_config() {
 	local source_config="$1"
 	local dest_config="$2"
+	local kernel_path="$3"
 
-	cp "${source_config}" "${dest_config}"
+	if [ "${source_config}" != "${dest_config}" ]; then
+		cp "${source_config}" "${dest_config}"
+	fi
 	sed -i \
-		-e 's#^kernel = ".*"#kernel = "/opt/kata/share/kata-containers/aster-kernel-osdk-bin.qemu_elf"#' \
-		-e 's#^image = ".*"#initrd = "/opt/kata/share/kata-containers/kata-containers-initrd.img"#' \
-		-e 's#^initrd = ".*"#initrd = "/opt/kata/share/kata-containers/kata-containers-initrd.img"#' \
+		-e "s#^kernel = \".*\"#kernel = \"${kernel_path}\"#" \
+		-e '/^initrd = ".*"/d' \
+		-e "s#^image = \".*\"#initrd = \"${INITRD_PATH}\"#" \
 		"${dest_config}"
+
+	if ! grep -q '^initrd = "' "${dest_config}"; then
+		printf 'initrd = "%s"\n' "${INITRD_PATH}" >> "${dest_config}"
+	fi
+}
+
+find_linux_test_kernel() {
+	local share_dir="$1"
+	local candidate
+	local target
+
+	if [ -L "${share_dir}/vmlinux.container" ]; then
+		target="$(readlink "${share_dir}/vmlinux.container")"
+		target="$(basename "${target}")"
+		if [ -f "${share_dir}/${target}" ]; then
+			printf '%s\n' "${target}"
+			return 0
+		fi
+	fi
+
+	candidate="$(
+		find "${share_dir}" \
+			-maxdepth 1 \
+			-type f \
+			-name 'vmlinux-*' \
+			! -name '*dragonball*' \
+			! -name '*nvidia*' \
+			-print | sort | head -n 1
+	)"
+	if [ -n "${candidate}" ]; then
+		basename "${candidate}"
+	fi
+}
+
+prune_asterinas_bundle() {
+	local defaults_dir="$1"
+	local runtime_rs_defaults_dir="$2"
+	local share_dir="$3"
+	local linux_test_kernel="$4"
+	local path
+	local keep
+
+	rm -f \
+		"${STAGING_DIR}/opt/kata/bin/cloud-hypervisor" \
+		"${STAGING_DIR}/opt/kata/bin/firecracker" \
+		"${STAGING_DIR}/opt/kata/bin/jailer" \
+		"${STAGING_DIR}/opt/kata/bin/kata-collect-data.sh" \
+		"${STAGING_DIR}/opt/kata/bin/kata-monitor" \
+		"${STAGING_DIR}/opt/kata/bin/qemu-system-x86_64-snp-experimental" \
+		"${STAGING_DIR}/opt/kata/bin/qemu-system-x86_64-tdx-experimental" \
+		"${STAGING_DIR}/opt/kata/libexec/nydusd"
+
+	rm -rf \
+		"${STAGING_DIR}/opt/kata/include" \
+		"${STAGING_DIR}/opt/kata/lib" \
+		"${STAGING_DIR}/opt/kata/runtime-rs" \
+		"${STAGING_DIR}/opt/kata/share/bash-completion" \
+		"${STAGING_DIR}/opt/kata/share/kata-qemu" \
+		"${STAGING_DIR}/opt/kata/share/kata-qemu-snp-experimental" \
+		"${STAGING_DIR}/opt/kata/share/kata-qemu-tdx-experimental" \
+		"${STAGING_DIR}/opt/kata/share/ovmf" \
+		"${runtime_rs_defaults_dir}"
+
+	for path in "${defaults_dir}"/*; do
+		[ -e "${path}" ] || continue
+		case "$(basename "${path}")" in
+			configuration.toml|configuration-asterinas.toml|configuration-qemu.toml)
+				;;
+			*)
+				rm -rf "${path}"
+				;;
+		esac
+	done
+
+	for path in "${share_dir}"/*; do
+		[ -e "${path}" ] || continue
+		keep=false
+		case "$(basename "${path}")" in
+			aster-kernel-osdk-bin.qemu_elf|\
+			"${initrd_target_name}"|\
+			kata-containers-initrd.img|\
+			vmlinux.container|\
+			vmlinuz.container|\
+			"${linux_test_kernel}"|\
+			"${LINUX_TEST_KERNEL_LINK}")
+				keep=true
+				;;
+		esac
+
+		if ! ${keep}; then
+			rm -rf "${path}"
+		fi
+	done
 }
 
 maybe_build_runtime() {
@@ -232,7 +331,7 @@ write_release_notes() {
 EOF
 }
 
-require_cmd awk curl find git make readlink sed sort sudo tar zstd sha256sum install cpio
+require_cmd awk curl find git grep make readlink sed sort sudo tar zstd sha256sum install cpio
 [ -n "${ASTERINAS_KERNEL}" ] || die "ASTERINAS_KERNEL must be set"
 [ -f "${ASTERINAS_KERNEL}" ] || die "Asterinas kernel artifact not found: ${ASTERINAS_KERNEL}"
 
@@ -253,6 +352,8 @@ runtime_rs_defaults_dir="${defaults_dir}/runtime-rs"
 
 [ -d "${share_dir}" ] || die "missing guest share dir in base tarball"
 [ -d "${defaults_dir}" ] || die "missing defaults dir in base tarball"
+linux_test_kernel="$(find_linux_test_kernel "${share_dir}")"
+[ -n "${linux_test_kernel}" ] || die "failed to find a Linux test kernel in the base tarball"
 
 initrd_link="${share_dir}/kata-containers-initrd.img"
 if [ -L "${initrd_link}" ]; then
@@ -271,18 +372,15 @@ install -m 0644 "${rebuilt_initrd}" "${share_dir}/${initrd_target_name}"
 install -m 0755 "${ASTERINAS_KERNEL}" "${share_dir}/aster-kernel-osdk-bin.qemu_elf"
 ln -sfn "aster-kernel-osdk-bin.qemu_elf" "${share_dir}/vmlinuz.container"
 ln -sfn "aster-kernel-osdk-bin.qemu_elf" "${share_dir}/vmlinux.container"
+ln -sfn "${linux_test_kernel}" "${share_dir}/${LINUX_TEST_KERNEL_LINK}"
 
 maybe_build_runtime
 
-patch_qemu_config "${defaults_dir}/configuration-qemu.toml" "${defaults_dir}/configuration-asterinas.toml"
+patch_qemu_config "${defaults_dir}/configuration-qemu.toml" "${defaults_dir}/configuration-asterinas.toml" "${ASTERINAS_KERNEL_PATH}"
+patch_qemu_config "${defaults_dir}/configuration-qemu.toml" "${defaults_dir}/configuration-qemu.toml" "/opt/kata/share/kata-containers/${LINUX_TEST_KERNEL_LINK}"
 ln -sfn "configuration-asterinas.toml" "${defaults_dir}/configuration.toml"
 
-if [ -f "${runtime_rs_defaults_dir}/configuration-qemu-runtime-rs.toml" ]; then
-	patch_qemu_config \
-		"${runtime_rs_defaults_dir}/configuration-qemu-runtime-rs.toml" \
-		"${runtime_rs_defaults_dir}/configuration-asterinas-runtime-rs.toml"
-	ln -sfn "configuration-asterinas-runtime-rs.toml" "${runtime_rs_defaults_dir}/configuration.toml"
-fi
+prune_asterinas_bundle "${defaults_dir}" "${runtime_rs_defaults_dir}" "${share_dir}" "${linux_test_kernel}"
 
 tar \
 	--sort=name \
