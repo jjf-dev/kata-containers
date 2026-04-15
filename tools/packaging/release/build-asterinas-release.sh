@@ -71,6 +71,28 @@ emit_output() {
 	fi
 }
 
+path_was_rebuilt() {
+	local path="$1"
+
+	case "${path}" in
+		opt/kata/share/kata-containers/aster-kernel-osdk-bin.qemu_elf|\
+		opt/kata/share/kata-containers/vmlinux.container|\
+		opt/kata/share/kata-containers/vmlinuz.container|\
+		opt/kata/share/kata-containers/kata-containers-initrd.img|\
+		opt/kata/share/kata-containers/"${initrd_target_name}")
+			return 0
+			;;
+		opt/kata/bin/kata-runtime|\
+		opt/kata/bin/containerd-shim-kata-v2)
+			if is_true "${RUNTIME_REBUILT}"; then
+				return 0
+			fi
+			;;
+	esac
+
+	return 1
+}
+
 write_build_summary() {
 	local display_name
 	local i
@@ -82,6 +104,8 @@ write_build_summary() {
 
 	{
 		printf '# Package contents\n\n'
+		printf -- '- Runtime rebuild: `%s` (`%s`)\n' "${RUNTIME_REBUILT}" "${RUNTIME_REBUILD_REASON}"
+		printf -- '- Files tagged `(rebuild)` were rebuilt in this workflow.\n\n'
 		printf '```text\n'
 		printf '.\n'
 
@@ -99,6 +123,9 @@ write_build_summary() {
 				display_name="${display_name} -> ${target}"
 			elif [ -d "${STAGING_DIR}/${path}" ]; then
 				display_name="${display_name}/"
+			fi
+			if path_was_rebuilt "${path}"; then
+				display_name="${display_name} (rebuild)"
 			fi
 
 			printf '%s%s\n' "${indent}" "${display_name}"
