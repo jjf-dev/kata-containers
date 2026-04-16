@@ -12,6 +12,7 @@ use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use kata_sys_util::mount::{get_linux_mount_info, parse_mount_options};
+use nix::errno::Errno;
 use nix::mount::MsFlags;
 use regex::Regex;
 use slog::Logger;
@@ -112,12 +113,12 @@ pub fn baremount(
         Some(options),
     )
     .map_err(|e| {
-        anyhow!(
+        anyhow!(e).context(format!(
             "failed to mount {} to {}, with error: {}",
             source.display(),
             destination.display(),
             e
-        )
+        ))
     })
 }
 
@@ -129,6 +130,15 @@ pub fn is_mounted(mount_point: &str) -> Result<bool> {
     Ok(found)
 }
 
+fn is_unsupported_devtmpfs_mount(m: &InitMount, err: &anyhow::Error) -> bool {
+    m.fstype == "devtmpfs"
+        && err.chain().any(|cause| {
+            cause
+                .downcast_ref::<Errno>()
+                .is_some_and(|errno| *errno == Errno::ENODEV)
+        })
+}
+
 #[instrument]
 fn mount_to_rootfs(logger: &Logger, m: &InitMount) -> Result<()> {
     fs::create_dir_all(m.dest).context("could not create directory")?;
@@ -137,17 +147,19 @@ fn mount_to_rootfs(logger: &Logger, m: &InitMount) -> Result<()> {
     let source = Path::new(m.src);
     let dest = Path::new(m.dest);
 
-    baremount(source, dest, m.fstype, flags, &options, logger).or_else(|e| {
-        if m.src == "dev" {
-            error!(
+    match baremount(source, dest, m.fstype, flags, &options, logger) {
+        Ok(()) => Ok(()),
+        Err(err) if is_unsupported_devtmpfs_mount(m, &err) => {
+            warn!(
                 logger,
-                "Could not mount filesystem from {} to {}", m.src, m.dest
+                "skip unsupported devtmpfs mount source={} dest={}",
+                m.src,
+                m.dest
             );
             Ok(())
-        } else {
-            Err(e)
         }
-    })
+        Err(err) => Err(err),
+    }
 }
 
 #[instrument]
@@ -526,6 +538,29 @@ mod tests {
                 error_msg
             );
         }
+    }
+
+    #[test]
+    fn test_is_unsupported_devtmpfs_mount() {
+        let dev_mount = InitMount {
+            fstype: "devtmpfs",
+            src: "dev",
+            dest: "/dev",
+            options: vec!["nosuid"],
+        };
+        let tmpfs_mount = InitMount {
+            fstype: "tmpfs",
+            src: "tmpfs",
+            dest: "/dev",
+            options: vec!["nosuid"],
+        };
+
+        let unsupported = anyhow!(Errno::ENODEV).context("failed to mount devtmpfs");
+        let invalid = anyhow!(Errno::EINVAL).context("failed to mount devtmpfs");
+
+        assert!(is_unsupported_devtmpfs_mount(&dev_mount, &unsupported));
+        assert!(!is_unsupported_devtmpfs_mount(&dev_mount, &invalid));
+        assert!(!is_unsupported_devtmpfs_mount(&tmpfs_mount, &unsupported));
     }
 
     #[test]
