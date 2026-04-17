@@ -143,6 +143,15 @@ normalize_kata_guest_artifact_paths() {
   fi
 }
 
+normalize_kata_debug_log_paths() {
+  local kata_config_path="$1"
+
+  sed -i \
+    -e 's#/home/[^"]*/kata-asterinas/console\.log#/tmp/kata-console.log#g' \
+    -e 's#/home/[^"]*/kata-asterinas/qemu-serial\.log#/tmp/kata-qemu-serial.log#g' \
+    "${kata_config_path}"
+}
+
 select_linux_guest_kernel_path() {
   local kernel_candidate
   local share_dir=/opt/kata/share/kata-containers
@@ -187,6 +196,7 @@ install_repo_configs() {
   normalize_qemu_config_path /etc/kata-containers/configuration.toml
   normalize_linux_guest_kernel_artifacts /etc/kata-containers/configuration.toml
   normalize_kata_guest_artifact_paths /etc/kata-containers/configuration.toml
+  normalize_kata_debug_log_paths /etc/kata-containers/configuration.toml
   install -m 0644 "${config_dir}/kata-10-container.toml" /etc/kata-containers/config.d/10-container.toml
 
   install -d -m 0755 /opt/cni /etc/cni/net.d /etc/containerd /run/containerd /var/lib/containerd
@@ -356,7 +366,7 @@ start_services() {
   install_repo_configs
   prepare_host_prerequisites
 
-  rm -f /dev/log /tmp/containerd.log /tmp/kata-syslog.log
+  rm -f /dev/log /tmp/containerd.log /tmp/kata-syslog.log /tmp/kata-console.log /tmp/kata-qemu-serial.log
 
   nohup syslogd -n -O /tmp/kata-syslog.log >/tmp/kata-syslog.stdout 2>&1 &
   echo $! > "${syslogd_pid_file}"

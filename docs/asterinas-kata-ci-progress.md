@@ -73,3 +73,13 @@
 - The PR run successfully pulled `asterinas/asterinas-kata:0.17.2-20260407`, so the published Docker Hub tag exists and is reachable from GitHub Actions.
 - The first published-image test attempt failed with exit code `127` because the pulled image did not contain `/root/asterinas/tools/kata/check_overlayfs.sh`.
 - To keep validating the published image as the runtime environment while avoiding dependence on the image's current helper-file layout, I updated the job to mount the checked-out `tools/kata/` directory into `/root/asterinas/tools/kata` before running the overlayfs preflight and the two Kata passes.
+
+## 2026-04-17 Published image config finding
+
+- The next published-image attempt progressed far enough to boot Kata, but failed because the published image's Kata config still referenced developer-local QEMU log paths under `/home/jianfeng/kata-asterinas/`.
+- The failure surfaced as QEMU refusing to create:
+  - `/home/jianfeng/kata-asterinas/console.log`
+  - `/home/jianfeng/kata-asterinas/qemu-serial.log`
+- I patched `tools/kata/kata_services.sh` so the copied runtime config is normalized to repo-expected log targets under `/tmp` before the services start:
+  - `/tmp/kata-console.log`
+  - `/tmp/kata-qemu-serial.log`
