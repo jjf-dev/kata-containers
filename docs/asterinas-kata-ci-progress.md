@@ -53,3 +53,17 @@
 - Created branch `kata-ci-release-image` and opened PR `https://github.com/jjf-dev/kata-containers/pull/21` against base branch `asterinas`.
 - Initial local commit: `16fb051c0` (`Add Asterinas Kata CI and image workflows`).
 - Next step: observe the GitHub Actions runs for this PR and record any failures or conclusions here.
+
+## 2026-04-17 Published image test update
+
+- Added a second job to `.github/workflows/test_kata_guest_os.yml` named `Test published Asterinas Kata image`.
+- The new job pulls `asterinas/asterinas-kata:<DOCKER_IMAGE_VERSION>` from Docker Hub, where `<DOCKER_IMAGE_VERSION>` is resolved from upstream `asterinas/asterinas`.
+- Because the published `asterinas/asterinas-kata` image already contains `/root/asterinas/tools/kata` and should already have the Kata environment installed, the test does not use a job-level `container:` and does not rerun `kata_env.sh install`.
+- Instead, it runs the pulled image with `docker run --privileged --cgroupns host` and the same `tmpfs` staging mounts, then executes overlayfs preflight plus two `run_kata.sh pass` runs from inside `/root/asterinas`.
+
+## 2026-04-17 Published image validation note
+
+- Static validation after switching to the published-image job:
+  - `git diff --check` passed
+  - YAML parsing for `.github/workflows/test_kata_guest_os.yml` passed
+- Local `docker manifest inspect asterinas/asterinas-kata:<DOCKER_IMAGE_VERSION>` timed out while reaching Docker Hub, matching the known local network instability. I will rely on the PR GitHub Actions runner to validate that the published image can be pulled and can run the Kata tests.
