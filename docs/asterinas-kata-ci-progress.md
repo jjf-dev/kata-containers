@@ -47,3 +47,9 @@
   - `bash -n` passed for the imported helper scripts and the release packaging script
   - `git diff --check` passed
   - YAML parser/actionlint checks are being attempted next depending on tool availability in this environment
+
+## 2026-04-17 PR and CI observation
+
+- Created branch `kata-ci-release-image` and opened PR `https://github.com/jjf-dev/kata-containers/pull/21` against base branch `asterinas`.
+- Initial local commit: `16fb051c0` (`Add Asterinas Kata CI and image workflows`).
+- Next step: observe the GitHub Actions runs for this PR and record any failures or conclusions here.
