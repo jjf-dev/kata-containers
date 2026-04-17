@@ -21,12 +21,12 @@ on:
       asterinas_repository:
         description: GitHub repository that contains the Asterinas source
         required: true
-        default: asterinas/asterinas
+        default: StevenJiang1110/asterinas
         type: string
       asterinas_ref:
         description: Git ref, branch, or tag to build from the Asterinas repository
         required: true
-        default: main
+        default: kata-support
         type: string
       asterinas_builder_image:
         description: Container image used to build the Asterinas kernel
@@ -48,8 +48,8 @@ permissions:
   contents: write
 
 env:
-  ASTERINAS_REPOSITORY: ${{ inputs.asterinas_repository || 'asterinas/asterinas' }}
-  ASTERINAS_REF: ${{ inputs.asterinas_ref || 'main' }}
+  ASTERINAS_REPOSITORY: ${{ inputs.asterinas_repository || 'StevenJiang1110/asterinas' }}
+  ASTERINAS_REF: ${{ inputs.asterinas_ref || 'kata-support' }}
   ASTERINAS_BUILDER_IMAGE: ${{ inputs.asterinas_builder_image || 'asterinas/asterinas:0.17.1-20260319' }}
   FORCE_RUNTIME_BUILD: ${{ inputs.force_runtime_build || false }}
   KATA_STATIC_RELEASE_REPOSITORY: ${{ inputs.kata_static_release_repository || 'kata-containers/kata-containers' }}
