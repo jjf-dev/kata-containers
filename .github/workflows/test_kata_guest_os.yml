@@ -115,6 +115,8 @@ jobs:
         shell: bash
     timeout-minutes: 90
     steps:
+      - uses: actions/checkout@v4
+
       - name: Pull Asterinas Kata image
         run: |
           set -euxo pipefail
@@ -136,6 +138,7 @@ jobs:
             --cgroupns host \
             --tmpfs /tmp:exec,mode=1777,size=8g \
             --tmpfs /var/lib/containerd:exec,mode=755,size=8g \
+            --volume "${GITHUB_WORKSPACE}/tools/kata:/root/asterinas/tools/kata:ro" \
             --env "KATA_CGROUP_NAMESPACE=${KATA_CGROUP_NAMESPACE}" \
             --env "KATA_GUEST_KERNEL=${KATA_GUEST_KERNEL}" \
             "${KATA_IMAGE}" \

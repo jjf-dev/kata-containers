@@ -67,3 +67,9 @@
   - `git diff --check` passed
   - YAML parsing for `.github/workflows/test_kata_guest_os.yml` passed
 - Local `docker manifest inspect asterinas/asterinas-kata:<DOCKER_IMAGE_VERSION>` timed out while reaching Docker Hub, matching the known local network instability. I will rely on the PR GitHub Actions runner to validate that the published image can be pulled and can run the Kata tests.
+
+## 2026-04-17 Published image runtime finding
+
+- The PR run successfully pulled `asterinas/asterinas-kata:0.17.2-20260407`, so the published Docker Hub tag exists and is reachable from GitHub Actions.
+- The first published-image test attempt failed with exit code `127` because the pulled image did not contain `/root/asterinas/tools/kata/check_overlayfs.sh`.
+- To keep validating the published image as the runtime environment while avoiding dependence on the image's current helper-file layout, I updated the job to mount the checked-out `tools/kata/` directory into `/root/asterinas/tools/kata` before running the overlayfs preflight and the two Kata passes.
