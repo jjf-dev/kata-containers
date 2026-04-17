@@ -55,25 +55,25 @@ env:
   KATA_STATIC_RELEASE_REPOSITORY: ${{ inputs.kata_static_release_repository || 'kata-containers/kata-containers' }}
 
 jobs:
-  build_asterinas_kernel:
-    name: Build Asterinas kernel
+  build-asterinas-kernel:
+    name: Build Asterinas kernel artifact
     runs-on: ubuntu-22.04
     container:
       image: ${{ inputs.asterinas_builder_image || 'asterinas/asterinas:0.17.1-20260319' }}
     steps:
-      - name: Check out Asterinas
+      - name: Check Out Asterinas
         uses: actions/checkout@v4
         with:
           repository: ${{ env.ASTERINAS_REPOSITORY }}
           ref: ${{ env.ASTERINAS_REF }}
           path: asterinas
 
-      - name: Build qemu-direct kernel
+      - name: Build qemu-direct Kernel
         run: |
           make -C asterinas kernel BOOT_METHOD=qemu-direct
           test -f asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf
 
-      - name: Upload kernel artifact
+      - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
           name: asterinas-kernel-amd64
@@ -81,20 +81,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  build_and_release:
-    name: Build and publish Asterinas Kata release
+  build-release-bundle:
+    name: Build and publish Asterinas Kata bundle
     runs-on: ubuntu-22.04
     needs:
-      - build_asterinas_kernel
+      - build-asterinas-kernel
     permissions:
       contents: write
     steps:
-      - name: Check out kata-containers
+      - name: Check Out kata-containers
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Derive Go version from versions.yaml
+      - name: Derive Go Version from versions.yaml
         id: go_version
         shell: bash
         run: |
@@ -110,23 +110,23 @@ jobs:
           test -n "${go_version}"
           echo "value=${go_version}" >> "${GITHUB_OUTPUT}"
 
-      - name: Set up Go
+      - name: Set Up Go
         uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.go_version.outputs.value }}
 
-      - name: Install packaging dependencies
+      - name: Install Packaging Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cpio zstd
 
-      - name: Download Asterinas kernel artifact
+      - name: Download Asterinas Kernel Artifact
         uses: actions/download-artifact@v4
         with:
           name: asterinas-kernel-amd64
           path: build/asterinas-kernel
 
-      - name: Build Asterinas-flavoured Kata tarball
+      - name: Build Asterinas-Flavoured Kata Tarball
         id: bundle
         env:
           ARCHITECTURE: amd64
@@ -140,7 +140,15 @@ jobs:
           chmod +x ./tools/packaging/release/build-asterinas-release.sh
           ./tools/packaging/release/build-asterinas-release.sh
 
-      - name: Upload workflow artifacts
+      - name: Verify Packaged Kata Helper Scripts
+        run: |
+          set -euo pipefail
+
+          tar -I zstd -tf "${{ steps.bundle.outputs.release_asset }}" | grep -F "opt/kata/share/kata-containers/tools/kata/kata_env.sh"
+          tar -I zstd -tf "${{ steps.bundle.outputs.release_asset }}" | grep -F "opt/kata/share/kata-containers/tools/kata/run_kata.sh"
+          tar -I zstd -tf "${{ steps.bundle.outputs.release_asset }}" | grep -F "opt/kata/share/kata-containers/tools/kata/kata_services.sh"
+
+      - name: Upload Workflow Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: asterinas-kata-release
@@ -153,7 +161,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Derive release metadata
+      - name: Derive Release Metadata
         id: release
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
         env:
@@ -181,7 +189,7 @@ jobs:
           echo "name=${release_name}" >> "${GITHUB_OUTPUT}"
           echo "draft=${draft_release}" >> "${GITHUB_OUTPUT}"
 
-      - name: Publish GitHub release
+      - name: Publish GitHub Release
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
         env:
           GH_TOKEN: ${{ github.token }}

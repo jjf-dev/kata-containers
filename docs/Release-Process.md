@@ -74,6 +74,18 @@ steps in the actions workflow have completed successfully. On success, a static
 tarball containing Kata release artifacts will be uploaded to the [Release
 page](https://github.com/kata-containers/kata-containers/releases).
 
+The Asterinas-flavoured static tarball also carries the Kata helper scripts
+under `/opt/kata/share/kata-containers/tools/kata`, so CI and downstream image
+builds can reuse the same repo-owned helper set that is exercised by the
+`test_kata_guest_os` workflow.
+
+The [publish-asterinas-kata-image](https://github.com/kata-containers/kata-containers/actions/workflows/publish-asterinas-kata-image.yaml)
+workflow builds the matching Docker Hub image. It resolves the current upstream
+`asterinas/asterinas` `DOCKER_IMAGE_VERSION`, layers the repo-owned
+`tools/kata/` helpers into `/root/asterinas/tools/kata`, runs
+`kata_env.sh install`, and then pushes `asterinas/asterinas-kata` when Docker
+Hub credentials are available.
+
 If the workflow fails because of some external environmental causes, e.g.
 network timeout, simply re-run the failed jobs until they eventually succeed.
 

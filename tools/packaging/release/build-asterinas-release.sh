@@ -37,6 +37,7 @@ RELEASE_NOTES="${DIST_DIR}/${RELEASE_BASENAME}.release-notes.md"
 
 KATA_SHARE_DIR_REL="opt/kata/share/kata-containers"
 KATA_DEFAULTS_DIR_REL="opt/kata/share/defaults/kata-containers"
+KATA_TOOLS_DIR_REL="${KATA_SHARE_DIR_REL}/tools/kata"
 ASTERINAS_KERNEL_PATH="/opt/kata/share/kata-containers/aster-kernel-osdk-bin.qemu_elf"
 INITRD_PATH="/opt/kata/share/kata-containers/kata-containers-initrd.img"
 LINUX_TEST_KERNEL_LINK="vmlinux-test.container"
@@ -263,6 +264,17 @@ prune_asterinas_bundle() {
 	done
 }
 
+copy_kata_helpers_into_release() {
+	local source_dir="${repo_root_dir}/tools/kata"
+	local dest_dir="${STAGING_DIR}/${KATA_TOOLS_DIR_REL}"
+
+	[ -d "${source_dir}" ] || die "missing kata helper directory: ${source_dir}"
+
+	rm -rf "${dest_dir}"
+	install -d -m 0755 "$(dirname "${dest_dir}")"
+	cp -a "${source_dir}" "${dest_dir}"
+}
+
 maybe_build_runtime() {
 	local runtime_tag="refs/tags/${VERSION}"
 
@@ -327,6 +339,7 @@ write_manifest() {
   "asterinas_kernel_artifact": "$(basename "${ASTERINAS_KERNEL}")",
   "guest_kernel_path": "/opt/kata/share/kata-containers/aster-kernel-osdk-bin.qemu_elf",
   "guest_initrd_path": "/opt/kata/share/kata-containers/kata-containers-initrd.img",
+  "kata_helper_dir": "/opt/kata/share/kata-containers/tools/kata",
   "guest_rootfs_os": "${GUEST_OS_NAME}",
   "guest_rootfs_version": "${GUEST_OS_VERSION}",
   "runtime_rebuilt": ${RUNTIME_REBUILT},
@@ -351,6 +364,7 @@ write_release_notes() {
 - Asterinas builder image: \`${ASTERINAS_BUILDER_IMAGE}\`
 - Guest kernel: \`/opt/kata/share/kata-containers/aster-kernel-osdk-bin.qemu_elf\`
 - Guest initrd: \`/opt/kata/share/kata-containers/kata-containers-initrd.img\`
+- Kata helper scripts: \`/opt/kata/share/kata-containers/tools/kata\`
 - Guest rootfs rebuild: \`${GUEST_OS_NAME}:${GUEST_OS_VERSION}\`
 - Runtime rebuilt: \`${RUNTIME_REBUILT}\`
 - Runtime rebuild reason: \`${RUNTIME_REBUILD_REASON}\`
@@ -408,6 +422,7 @@ patch_qemu_config "${defaults_dir}/configuration-qemu.toml" "${defaults_dir}/con
 ln -sfn "configuration-asterinas.toml" "${defaults_dir}/configuration.toml"
 
 prune_asterinas_bundle "${defaults_dir}" "${runtime_rs_defaults_dir}" "${share_dir}" "${linux_test_kernel}"
+copy_kata_helpers_into_release
 
 tar \
 	--sort=name \
