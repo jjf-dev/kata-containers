@@ -191,7 +191,9 @@ install_repo_configs() {
 
   kata_config_source="$(select_kata_config_source)"
 
-  install -d -m 0755 /etc/kata-containers /etc/kata-containers/config.d
+  install -d -m 0755 /etc/kata-containers
+  rm -rf /etc/kata-containers/config.d
+  install -d -m 0755 /etc/kata-containers/config.d
   install -m 0644 "${kata_config_source}" /etc/kata-containers/configuration.toml
   normalize_qemu_config_path /etc/kata-containers/configuration.toml
   normalize_linux_guest_kernel_artifacts /etc/kata-containers/configuration.toml

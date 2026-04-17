@@ -83,3 +83,5 @@
 - I patched `tools/kata/kata_services.sh` so the copied runtime config is normalized to repo-expected log targets under `/tmp` before the services start:
   - `/tmp/kata-console.log`
   - `/tmp/kata-qemu-serial.log`
+- The follow-up run still showed the old paths in the final QEMU command line, which indicates the published image is likely carrying an older `/etc/kata-containers/config.d` drop-in that overrides the copied base config.
+- I therefore tightened `install_repo_configs()` to delete the existing `/etc/kata-containers/config.d` tree before installing the repo-owned drop-in used by the test workflow.
