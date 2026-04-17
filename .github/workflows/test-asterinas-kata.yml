@@ -1,4 +1,4 @@
-name: Test Kata Guest OS
+name: Test | Asterinas Kata
 
 on:
   workflow_dispatch:
@@ -6,12 +6,18 @@ on:
   push:
     branches:
       - main
+      - asterinas
 
 permissions:
   contents: read
 
+env:
+  KATA_CGROUP_NAMESPACE: host
+  KATA_GUEST_KERNEL: linux
+  KATA_STATIC_TARBALL_RELEASE_REPO: ${{ github.repository }}
+
 jobs:
-  resolve-asterinas-image:
+  resolve-upstream-asterinas-image:
     name: Resolve upstream Asterinas image
     runs-on: ubuntu-latest
     outputs:
@@ -19,7 +25,7 @@ jobs:
       docker_image_version: ${{ steps.resolve.outputs.docker_image_version }}
       base_image: ${{ steps.resolve.outputs.base_image }}
     steps:
-      - name: Resolve upstream Docker image version
+      - name: Resolve Upstream Asterinas Image Metadata
         id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
@@ -50,109 +56,82 @@ jobs:
             echo "- Base image: \`asterinas/asterinas:${docker_image_version}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
-  prepare-kata-runtime-host:
+  test-kata-from-source:
+    name: Test Kata from source in upstream base image
     needs:
-      - resolve-asterinas-image
+      - resolve-upstream-asterinas-image
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.resolve-asterinas-image.outputs.base_image }}
-      options: >-
+      image: ${{ needs.resolve-upstream-asterinas-image.outputs.base_image }}
+      options: &kata_container_options >-
         --privileged
         --cgroupns host
         --tmpfs /tmp:exec,mode=1777,size=8g
         --tmpfs /var/lib/containerd:exec,mode=755,size=8g
     env:
-      KATA_CGROUP_NAMESPACE: host
-      KATA_GUEST_KERNEL: linux
-      KATA_STATIC_TARBALL_RELEASE_REPO: ${{ github.repository }}
+      KATA_TEST_IMAGE_LOG_LABEL: base image
+      KATA_TEST_IMAGE_LOG_VALUE: ${{ needs.resolve-upstream-asterinas-image.outputs.base_image }}
     defaults:
       run:
         shell: bash
     timeout-minutes: 90
     steps:
-      - name: Check disk space
+      - &checkout_repo
+        uses: actions/checkout@v4
+
+      - &check_disk_space
+        name: Check Disk Space
         run: |
           set -euxo pipefail
           df -h
           findmnt -no TARGET,FSTYPE,OPTIONS /tmp
           findmnt -no TARGET,FSTYPE,OPTIONS /var/lib/containerd
           stat -f -c '%T %n' /tmp /var/lib/containerd
-          printf 'base image: %s\n' "${{ needs.resolve-asterinas-image.outputs.base_image }}"
+          printf '%s: %s\n' "${KATA_TEST_IMAGE_LOG_LABEL}" "${KATA_TEST_IMAGE_LOG_VALUE}"
 
-      - uses: actions/checkout@v4
-
-      - name: Check overlayfs staging prerequisites
+      - &check_overlayfs
+        name: Check OverlayFS Staging Prerequisites
         run: |
           set -euxo pipefail
           bash tools/kata/check_overlayfs.sh
 
-      - name: Install Kata environment
+      - &install_kata_environment
+        name: Install Kata Environment
         run: |
           set -euxo pipefail
           bash tools/kata/kata_env.sh install
 
-      - name: Run Kata pass 1
+      - &run_kata_pass_1
+        name: Run Kata Pass 1
         run: |
           set -euxo pipefail
           bash tools/kata/run_kata.sh pass
 
-      - name: Run Kata pass 2
+      - &run_kata_pass_2
+        name: Run Kata Pass 2
         run: |
           set -euxo pipefail
           bash tools/kata/run_kata.sh pass
 
-  prepare-preinstalled-kata-runtime-host:
+  test-published-kata-image:
     name: Test published Asterinas Kata image
     needs:
-      - resolve-asterinas-image
+      - resolve-upstream-asterinas-image
     runs-on: ubuntu-latest
+    container:
+      image: asterinas/asterinas-kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
+      options: *kata_container_options
     env:
-      KATA_IMAGE: asterinas/asterinas-kata:${{ needs.resolve-asterinas-image.outputs.docker_image_version }}
-      KATA_CGROUP_NAMESPACE: host
-      KATA_GUEST_KERNEL: linux
+      KATA_TEST_IMAGE_LOG_LABEL: test image
+      KATA_TEST_IMAGE_LOG_VALUE: asterinas/asterinas-kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
     defaults:
       run:
         shell: bash
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Pull Asterinas Kata image
-        run: |
-          set -euxo pipefail
-
-          docker pull "${KATA_IMAGE}"
-          docker image inspect "${KATA_IMAGE}" >/dev/null
-          {
-            echo '## Pulled published Asterinas Kata image'
-            echo
-            echo "- Image: \`${KATA_IMAGE}\`"
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-      - name: Run Kata tests from Asterinas Kata image
-        run: |
-          set -euxo pipefail
-
-          docker run --rm \
-            --privileged \
-            --cgroupns host \
-            --tmpfs /tmp:exec,mode=1777,size=8g \
-            --tmpfs /var/lib/containerd:exec,mode=755,size=8g \
-            --volume "${GITHUB_WORKSPACE}/tools/kata:/root/asterinas/tools/kata:ro" \
-            --env "KATA_CGROUP_NAMESPACE=${KATA_CGROUP_NAMESPACE}" \
-            --env "KATA_GUEST_KERNEL=${KATA_GUEST_KERNEL}" \
-            "${KATA_IMAGE}" \
-            bash -lc '
-              set -euxo pipefail
-
-              cd /root/asterinas
-              df -h
-              findmnt -no TARGET,FSTYPE,OPTIONS /tmp
-              findmnt -no TARGET,FSTYPE,OPTIONS /var/lib/containerd
-              stat -f -c "%T %n" /tmp /var/lib/containerd
-              printf "test image: %s\n" "'"${KATA_IMAGE}"'"
-
-              bash tools/kata/check_overlayfs.sh
-              bash tools/kata/run_kata.sh pass
-              bash tools/kata/run_kata.sh pass
-            '
+      - *checkout_repo
+      - *check_disk_space
+      - *check_overlayfs
+      - *install_kata_environment
+      - *run_kata_pass_1
+      - *run_kata_pass_2

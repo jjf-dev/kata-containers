@@ -1,12 +1,40 @@
 # Asterinas Kata CI Progress
 
+## 2026-04-20 Workflow naming cleanup
+
+- Renamed the test workflow file from `.github/workflows/test_kata_guest_os.yml` to `.github/workflows/test-asterinas-kata.yml` and updated its top-level workflow name to `Test | Asterinas Kata`.
+- Renamed the release workflow file from `.github/workflows/release-asterinas.yaml` to `.github/workflows/release-asterinas-kata-bundle.yml` so the file name matches the Asterinas-specific release payload it builds.
+- Renamed the publish workflow file from `.github/workflows/publish-asterinas-kata-image.yaml` to `.github/workflows/publish-asterinas-kata-image.yml` to align the extension with the other workflow files.
+- Normalized the user-facing job names so the GitHub Actions UI now shows:
+  - `Resolve upstream Asterinas image`
+  - `Build and optionally push Asterinas Kata image`
+  - `Build Asterinas kernel artifact`
+  - `Build and publish Asterinas Kata bundle`
+- Normalized the step names across all three workflows to the same Title Case style so the GitHub Actions UI reads consistently at both job and step level.
+- Updated repository documentation links and workflow-path references to match the renamed files.
+- Static validation after the naming cleanup:
+  - all workflow YAML files parsed successfully
+  - no stale references to the old workflow file names remain outside this historical log entry
+
+## 2026-04-20 Asterinas branch push triggers
+
+- Updated `.github/workflows/test-asterinas-kata.yml` so pushes to the `asterinas` branch trigger the workflow in addition to `main`.
+- Updated `.github/workflows/publish-asterinas-kata-image.yml` so pushes to the `asterinas` branch trigger the workflow in addition to `main`.
+- Left `.github/workflows/release-asterinas-kata-bundle.yml` unchanged because it already triggers on every `push`, which already includes the `asterinas` branch.
+
+## 2026-04-20 Published image job workspace fix
+
+- The first post-rewrite PR run failed in `Test published Asterinas Kata image` during `Check OverlayFS Staging Prerequisites`.
+- Root cause: after converting the published-image test to a job-level `container:`, the workflow still expected the helper scripts to be available under `/root/asterinas/tools/kata`, but `actions/checkout` places the repo under the GitHub Actions workspace instead.
+- Fix: removed the extra `container.volumes` mount and the `/root/asterinas` working-directory override so the published-image job now runs the repo-owned helper scripts from the checked-out workspace, just like the source-image job.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
   1. Import the CI plus all referenced scripts from `StevenJiang1110/asterinas` PR `#57` into this repo.
-  2. Update `release-asterinas` so the imported scripts are also included in the release output.
+  2. Update `release-asterinas-kata-bundle` so the imported scripts are also included in the release output.
   3. Add a new workflow that builds an `asterinas/asterinas-kata` image from the upstream `asterinas/asterinas` base image, runs `kata_env.sh install`, copies all imported scripts into `/root/asterinas/tools/kata`, and pushes the result to Docker Hub.
-- Found the current repo already contains `.github/workflows/release-asterinas.yaml`.
+- Found the current repo already contains `.github/workflows/release-asterinas-kata-bundle.yml`.
 - Found Git remote `origin` points to `git@github.com:jjf-dev/kata-containers.git`.
 - Next step: inspect PR `StevenJiang1110/asterinas#57` with `gh` and map the required files into this repository.
 
@@ -14,7 +42,7 @@
 
 - Inspected `StevenJiang1110/asterinas#57` with `gh`.
 - The PR contributes one workflow and the full reusable helper set under `tools/kata/`:
-  - `.github/workflows/test_kata_guest_os.yml`
+  - `.github/workflows/test-asterinas-kata.yml`
   - `tools/kata/README.md`
   - `tools/kata/common.sh`
   - `tools/kata/check_overlayfs.sh`
@@ -26,7 +54,7 @@
   - `tools/kata/config/kata-10-container.toml`
   - `tools/kata/config/smoke-test.env`
 - The imported workflow uses a privileged GitHub Actions job container, runs overlayfs preflight, installs the Kata test environment, and executes two Kata passes.
-- Next step: wire those files into this repo, then teach `release-asterinas` to package the same helper directory into the Asterinas release tarball.
+- Next step: wire those files into this repo, then teach `release-asterinas-kata-bundle` to package the same helper directory into the Asterinas release tarball.
 
 ## 2026-04-17 Upstream version findings
 
@@ -36,13 +64,13 @@
 
 ## 2026-04-17 Implementation update
 
-- Imported `.github/workflows/test_kata_guest_os.yml` and the full `tools/kata/` helper directory from `StevenJiang1110/asterinas#57`.
+- Imported `.github/workflows/test-asterinas-kata.yml` and the full `tools/kata/` helper directory from `StevenJiang1110/asterinas#57`.
 - Adjusted the imported guest-OS workflow so it:
   - resolves the upstream `asterinas/asterinas` base image version dynamically from `DOCKER_IMAGE_VERSION`
   - points `KATA_STATIC_TARBALL_RELEASE_REPO` at the current GitHub repository during CI runs
 - Updated `tools/packaging/release/build-asterinas-release.sh` so Asterinas release tarballs now include `opt/kata/share/kata-containers/tools/kata/`.
-- Added an explicit verification step in `.github/workflows/release-asterinas.yaml` to assert the packaged tarball contains the key Kata helper scripts.
-- Added `.github/workflows/publish-asterinas-kata-image.yaml` and `tools/packaging/asterinas-kata/Dockerfile` to build an `asterinas/asterinas-kata` image from the upstream Asterinas base image, install the Kata environment, copy `tools/kata/` into `/root/asterinas/tools/kata`, and push when Docker Hub credentials are available.
+- Added an explicit verification step in `.github/workflows/release-asterinas-kata-bundle.yml` to assert the packaged tarball contains the key Kata helper scripts.
+- Added `.github/workflows/publish-asterinas-kata-image.yml` and `tools/packaging/asterinas-kata/Dockerfile` to build an `asterinas/asterinas-kata` image from the upstream Asterinas base image, install the Kata environment, copy `tools/kata/` into `/root/asterinas/tools/kata`, and push when Docker Hub credentials are available.
 - Static validation so far:
   - `bash -n` passed for the imported helper scripts and the release packaging script
   - `git diff --check` passed
@@ -56,7 +84,7 @@
 
 ## 2026-04-17 Published image test update
 
-- Added a second job to `.github/workflows/test_kata_guest_os.yml` named `Test published Asterinas Kata image`.
+- Added a second job to `.github/workflows/test-asterinas-kata.yml` named `Test published Asterinas Kata image`.
 - The new job pulls `asterinas/asterinas-kata:<DOCKER_IMAGE_VERSION>` from Docker Hub, where `<DOCKER_IMAGE_VERSION>` is resolved from upstream `asterinas/asterinas`.
 - Because the published `asterinas/asterinas-kata` image already contains `/root/asterinas/tools/kata` and should already have the Kata environment installed, the test does not use a job-level `container:` and does not rerun `kata_env.sh install`.
 - Instead, it runs the pulled image with `docker run --privileged --cgroupns host` and the same `tmpfs` staging mounts, then executes overlayfs preflight plus two `run_kata.sh pass` runs from inside `/root/asterinas`.
@@ -65,7 +93,7 @@
 
 - Static validation after switching to the published-image job:
   - `git diff --check` passed
-  - YAML parsing for `.github/workflows/test_kata_guest_os.yml` passed
+  - YAML parsing for `.github/workflows/test-asterinas-kata.yml` passed
 - Local `docker manifest inspect asterinas/asterinas-kata:<DOCKER_IMAGE_VERSION>` timed out while reaching Docker Hub, matching the known local network instability. I will rely on the PR GitHub Actions runner to validate that the published image can be pulled and can run the Kata tests.
 
 ## 2026-04-17 Published image runtime finding
@@ -85,3 +113,4 @@
   - `/tmp/kata-qemu-serial.log`
 - The follow-up run still showed the old paths in the final QEMU command line, which indicates the published image is likely carrying an older `/etc/kata-containers/config.d` drop-in that overrides the copied base config.
 - I therefore tightened `install_repo_configs()` to delete the existing `/etc/kata-containers/config.d` tree before installing the repo-owned drop-in used by the test workflow.
+- Even after that cleanup, the published Docker Hub image still behaved like an older runtime/config payload. To keep using the published image while making the test exercise the current Kata release bits, I updated the published-image job to run `bash tools/kata/kata_env.sh install` inside the pulled image before the two Kata passes.

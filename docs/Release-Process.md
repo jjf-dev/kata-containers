@@ -53,7 +53,7 @@ action runs.
 ### Check GitHub Actions
 
 We make use of [GitHub actions](https://github.com/features/actions) in the
-[release-asterinas](https://github.com/kata-containers/kata-containers/actions/workflows/release-asterinas.yaml)
+[release-asterinas-kata-bundle](https://github.com/kata-containers/kata-containers/actions/workflows/release-asterinas-kata-bundle.yml)
 workflow from the `kata-containers/kata-containers` repository to build and upload
 Asterinas release artifacts.
 
@@ -77,9 +77,9 @@ page](https://github.com/kata-containers/kata-containers/releases).
 The Asterinas-flavoured static tarball also carries the Kata helper scripts
 under `/opt/kata/share/kata-containers/tools/kata`, so CI and downstream image
 builds can reuse the same repo-owned helper set that is exercised by the
-`test_kata_guest_os` workflow.
+`test-asterinas-kata` workflow.
 
-The [publish-asterinas-kata-image](https://github.com/kata-containers/kata-containers/actions/workflows/publish-asterinas-kata-image.yaml)
+The [publish-asterinas-kata-image](https://github.com/kata-containers/kata-containers/actions/workflows/publish-asterinas-kata-image.yml)
 workflow builds the matching Docker Hub image. It resolves the current upstream
 `asterinas/asterinas` `DOCKER_IMAGE_VERSION`, layers the repo-owned
 `tools/kata/` helpers into `/root/asterinas/tools/kata`, runs
