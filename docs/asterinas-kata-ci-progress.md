@@ -65,6 +65,12 @@
 - Root cause: the test matrix exported `KATA_ASTERINAS_KERNEL_PATH=/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf`, which made `kata_env.sh install` bypass the repo release tarball and instead overlay the upstream image kernel onto a generic Kata install.
 - Fix: removed the `KATA_ASTERINAS_KERNEL_PATH` override from the workflow so both `linux` and `asterinas` variants install the same repo-owned Asterinas Kata release tarball, and `KATA_GUEST_KERNEL` only selects which packaged guest configuration to use.
 
+## 2026-04-20 Asterinas guest startup timeout
+
+- After the release-bundle path fix, both Linux variants passed and both Asterinas variants still failed, but only after a consistent ~45 second wait for the guest agent vsock handshake.
+- This suggests the Asterinas guest path is at least reaching VM startup and may simply need a longer container creation window than the Linux guest.
+- I increased `runtime.create_container_timeout` in `tools/kata/config/kata-10-container.toml` from the Kata default to `180` seconds so the smoke test gives the Asterinas guest more time to boot and bring up the agent before the runtime fails the workload.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
