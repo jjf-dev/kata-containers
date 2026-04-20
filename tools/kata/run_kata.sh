@@ -194,10 +194,22 @@ run_workload_task() (
         cat /tmp/kata-console.log || true
         echo "::endgroup::"
       fi
+      if [ -f /tmp/console.log ]; then
+        emit_github_error_tail "qemu console" /tmp/console.log
+        echo "::group::console.log"
+        cat /tmp/console.log || true
+        echo "::endgroup::"
+      fi
       if [ -f /tmp/kata-qemu-serial.log ]; then
         emit_github_error_tail "kata qemu serial" /tmp/kata-qemu-serial.log
         echo "::group::kata-qemu-serial.log"
         cat /tmp/kata-qemu-serial.log || true
+        echo "::endgroup::"
+      fi
+      if [ -f /tmp/qemu-serial.log ]; then
+        emit_github_error_tail "qemu serial" /tmp/qemu-serial.log
+        echo "::group::qemu-serial.log"
+        cat /tmp/qemu-serial.log || true
         echo "::endgroup::"
       fi
     fi

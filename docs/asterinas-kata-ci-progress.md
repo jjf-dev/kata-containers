@@ -72,6 +72,11 @@
 - I increased `runtime.create_container_timeout` in `tools/kata/config/kata-10-container.toml` from the Kata default to `180` seconds so the smoke test gives the Asterinas guest more time to boot and bring up the agent before the runtime fails the workload.
 - I also increased `[agent.kata].dial_timeout` to `180`, because the Kata logs showed the runtime was still enforcing a separate 45-second agent vsock dialing deadline even after the longer container creation timeout was in place.
 
+## 2026-04-20 QEMU console dump on failure
+
+- Updated `tools/kata/run_kata.sh` so CI failures now dump both the repo-normalized log paths (`/tmp/kata-console.log`, `/tmp/kata-qemu-serial.log`) and the raw QEMU log paths actually seen in recent failures (`/tmp/console.log`, `/tmp/qemu-serial.log`).
+- Updated `tools/kata/kata_services.sh` cleanup so those raw QEMU log files are cleared between passes as well.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:

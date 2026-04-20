@@ -368,7 +368,7 @@ start_services() {
   install_repo_configs
   prepare_host_prerequisites
 
-  rm -f /dev/log /tmp/containerd.log /tmp/kata-syslog.log /tmp/kata-console.log /tmp/kata-qemu-serial.log
+  rm -f /dev/log /tmp/containerd.log /tmp/kata-syslog.log /tmp/kata-console.log /tmp/kata-qemu-serial.log /tmp/console.log /tmp/qemu-serial.log
 
   nohup syslogd -n -O /tmp/kata-syslog.log >/tmp/kata-syslog.stdout 2>&1 &
   echo $! > "${syslogd_pid_file}"
