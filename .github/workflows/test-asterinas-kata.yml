@@ -95,7 +95,6 @@ jobs:
     name: Test Kata (${{ matrix.image_variant }}, ${{ matrix.guest_kernel }})
     needs:
       - resolve-upstream-asterinas-image
-      - build-published-kata-image
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

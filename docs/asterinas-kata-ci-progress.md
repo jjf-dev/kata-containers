@@ -89,6 +89,10 @@
 - Updated the same container options to also pass through `--device /dev/vsock:/dev/vsock`.
 - Added a quick `ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock /dev/vsock` check to the test diagnostics so the CI log shows whether all four host devices are visible inside the job container.
 
+## 2026-04-20 Temporary test/build decoupling
+
+- Temporarily removed `build-published-kata-image` from the `needs` list of `test-kata` so the test matrix no longer waits for that pre-test image build job before starting.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
