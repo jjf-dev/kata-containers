@@ -55,10 +55,50 @@ jobs:
             echo "- Base image: \`asterinas/asterinas:${docker_image_version}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
+  build-published-kata-image:
+    name: Build published Asterinas Kata image for tests
+    needs:
+      - resolve-upstream-asterinas-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log In to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Image for Published-Image Tests
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: tools/packaging/asterinas-kata/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=Asterinas base image with Kata helpers and Kata environment preinstalled
+            org.opencontainers.image.version=${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
+            org.opencontainers.image.base.name=${{ needs.resolve-upstream-asterinas-image.outputs.base_image }}
+            io.asterinas.version=${{ needs.resolve-upstream-asterinas-image.outputs.asterinas_version }}
+          build-args: |
+            ASTERINAS_BASE_IMAGE=${{ needs.resolve-upstream-asterinas-image.outputs.base_image }}
+            KATA_STATIC_TARBALL_RELEASE_REPO=${{ github.repository }}
+            ASTERINAS_RELEASE_VERSION=${{ needs.resolve-upstream-asterinas-image.outputs.asterinas_version }}
+            ASTERINAS_DOCKER_IMAGE_VERSION=${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
+
   test-kata:
     name: Test Kata (${{ matrix.image_variant }}, ${{ matrix.guest_kernel }})
     needs:
       - resolve-upstream-asterinas-image
+      - build-published-kata-image
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -77,6 +117,7 @@ jobs:
         --tmpfs /tmp:exec,mode=1777,size=8g
         --tmpfs /var/lib/containerd:exec,mode=755,size=8g
     env:
+      KATA_ASTERINAS_KERNEL_PATH: ${{ matrix.guest_kernel == 'asterinas' && '/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf' || '' }}
       KATA_GUEST_KERNEL: ${{ matrix.guest_kernel }}
       KATA_TEST_IMAGE_LOG_LABEL: ${{ matrix.image_variant == 'source' && 'base image / guest kernel' || 'test image / guest kernel' }}
       KATA_TEST_IMAGE_LOG_VALUE: ${{ matrix.image_variant == 'source' && format('{0} / {1}', needs.resolve-upstream-asterinas-image.outputs.base_image, matrix.guest_kernel) || format('asterinas/kata:{0} / {1}', needs.resolve-upstream-asterinas-image.outputs.docker_image_version, matrix.guest_kernel) }}

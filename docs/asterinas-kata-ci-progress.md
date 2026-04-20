@@ -44,6 +44,12 @@
 - Collapsed the previous `test-kata-from-source` and `test-published-kata-image` jobs into a single `test-kata` matrix job.
 - The new matrix spans both image variants (`source`, `published`) and both guest kernels (`linux`, `asterinas`), so the workflow still covers the same four combinations with less duplicated YAML.
 
+## 2026-04-20 In-workflow published-image dependency
+
+- The first unified-matrix attempt showed that using `asterinas/kata:<DOCKER_IMAGE_VERSION>` directly as a job container races with image publication, because job containers are pulled before any steps run.
+- To keep job-level `container:` semantics while guaranteeing ordering, I added a `build-published-kata-image` job into `.github/workflows/test-asterinas-kata.yml` and made the matrix test job depend on it with `needs`.
+- I also wired the `asterinas` guest-kernel matrix entries to export `KATA_ASTERINAS_KERNEL_PATH=/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf` so `kata_env.sh install` can overlay the image’s own Asterinas kernel before the smoke test runs.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
