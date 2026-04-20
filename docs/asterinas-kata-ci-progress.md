@@ -34,6 +34,11 @@
 - Updated the published-image test job so it pulls `asterinas/kata:<DOCKER_IMAGE_VERSION>`.
 - Updated repository docs so the Docker image name is consistently documented as `asterinas/kata`.
 
+## 2026-04-20 Dual guest-kernel test matrix
+
+- Updated `.github/workflows/test-asterinas-kata.yml` so both test jobs now run as a matrix over `KATA_GUEST_KERNEL=linux` and `KATA_GUEST_KERNEL=asterinas`.
+- Both guest-kernel variants continue to use the same smoke-test helpers, container image, workload command, and output expectation, so the CI now checks that Linux and Asterinas guests produce the same expected workload result.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:

@@ -13,7 +13,6 @@ permissions:
 
 env:
   KATA_CGROUP_NAMESPACE: host
-  KATA_GUEST_KERNEL: linux
   KATA_STATIC_TARBALL_RELEASE_REPO: ${{ github.repository }}
 
 jobs:
@@ -57,10 +56,16 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   test-kata-from-source:
-    name: Test Kata from source in upstream base image
+    name: Test Kata from source in upstream base image (${{ matrix.guest_kernel }})
     needs:
       - resolve-upstream-asterinas-image
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        guest_kernel:
+          - linux
+          - asterinas
     container:
       image: ${{ needs.resolve-upstream-asterinas-image.outputs.base_image }}
       options: &kata_container_options >-
@@ -69,8 +74,9 @@ jobs:
         --tmpfs /tmp:exec,mode=1777,size=8g
         --tmpfs /var/lib/containerd:exec,mode=755,size=8g
     env:
-      KATA_TEST_IMAGE_LOG_LABEL: base image
-      KATA_TEST_IMAGE_LOG_VALUE: ${{ needs.resolve-upstream-asterinas-image.outputs.base_image }}
+      KATA_GUEST_KERNEL: ${{ matrix.guest_kernel }}
+      KATA_TEST_IMAGE_LOG_LABEL: base image / guest kernel
+      KATA_TEST_IMAGE_LOG_VALUE: ${{ needs.resolve-upstream-asterinas-image.outputs.base_image }} / ${{ matrix.guest_kernel }}
     defaults:
       run:
         shell: bash
@@ -114,16 +120,23 @@ jobs:
           bash tools/kata/run_kata.sh pass
 
   test-published-kata-image:
-    name: Test published Asterinas Kata image
+    name: Test published Asterinas Kata image (${{ matrix.guest_kernel }})
     needs:
       - resolve-upstream-asterinas-image
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        guest_kernel:
+          - linux
+          - asterinas
     container:
       image: asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
       options: *kata_container_options
     env:
-      KATA_TEST_IMAGE_LOG_LABEL: test image
-      KATA_TEST_IMAGE_LOG_VALUE: asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
+      KATA_GUEST_KERNEL: ${{ matrix.guest_kernel }}
+      KATA_TEST_IMAGE_LOG_LABEL: test image / guest kernel
+      KATA_TEST_IMAGE_LOG_VALUE: asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }} / ${{ matrix.guest_kernel }}
     defaults:
       run:
         shell: bash
