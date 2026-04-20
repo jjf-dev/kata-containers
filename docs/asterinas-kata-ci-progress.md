@@ -93,6 +93,14 @@
 
 - Temporarily removed `build-published-kata-image` from the `needs` list of `test-kata` so the test matrix no longer waits for that pre-test image build job before starting.
 
+## 2026-04-20 Host-run vsock comparison workflow
+
+- Added `.github/workflows/compare-asterinas-kata-vsock.yml` as a separate comparison workflow that keeps the existing main test workflow untouched.
+- This new workflow uses host-runner `docker run` steps instead of job-level `container:` so it can compare two host setups side by side:
+  - without `sudo modprobe vhost_vsock`
+  - with `sudo modprobe vhost_vsock`
+- The comparison matrix also covers both image variants (`source`, `published`) while fixing `KATA_GUEST_KERNEL=asterinas`, which should make it easier to tell whether the extra host-side `modprobe` is necessary for the Asterinas guest path.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
