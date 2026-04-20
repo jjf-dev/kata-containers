@@ -110,6 +110,8 @@ jobs:
       image: ${{ matrix.image_variant == 'source' && format('asterinas/asterinas:{0}', needs.resolve-upstream-asterinas-image.outputs.docker_image_version) || format('asterinas/kata:{0}', needs.resolve-upstream-asterinas-image.outputs.docker_image_version) }}
       options: &kata_container_options >-
         --privileged
+        --device /dev/kvm:/dev/kvm
+        --device /dev/vhost-net:/dev/vhost-net
         --cgroupns host
         --tmpfs /tmp:exec,mode=1777,size=8g
         --tmpfs /var/lib/containerd:exec,mode=755,size=8g
@@ -130,6 +132,7 @@ jobs:
         run: |
           set -euxo pipefail
           df -h
+          ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock || true
           findmnt -no TARGET,FSTYPE,OPTIONS /tmp
           findmnt -no TARGET,FSTYPE,OPTIONS /var/lib/containerd
           stat -f -c '%T %n' /tmp /var/lib/containerd

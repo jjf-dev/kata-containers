@@ -82,6 +82,12 @@
 - The failing Asterinas guest jobs were still launching QEMU with `-m 2048M` and `memory-backend-file ... size=2048M`.
 - Updated `tools/kata/config/kata-10-container.toml` to set `default_memory = 4096` under `[hypervisor.qemu]`, so the CI now boots Kata VMs with at least 4 GiB of guest RAM.
 
+## 2026-04-20 Expose `/dev/vhost-net` in test containers
+
+- Updated `.github/workflows/test-asterinas-kata.yml` so the Kata test job containers now start with `--device /dev/vhost-net:/dev/vhost-net` in their container options.
+- Updated the same container options to also pass through `--device /dev/kvm:/dev/kvm`.
+- Added a quick `ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock` check to the test diagnostics so the CI log shows whether all three host devices are visible inside the job container.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
