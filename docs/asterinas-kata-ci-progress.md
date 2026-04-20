@@ -49,6 +49,7 @@
 - The first unified-matrix attempt showed that using `asterinas/kata:<DOCKER_IMAGE_VERSION>` directly as a job container races with image publication, because job containers are pulled before any steps run.
 - To keep job-level `container:` semantics while guaranteeing ordering, I added a `build-published-kata-image` job into `.github/workflows/test-asterinas-kata.yml` and made the matrix test job depend on it with `needs`.
 - I also wired the `asterinas` guest-kernel matrix entries to export `KATA_ASTERINAS_KERNEL_PATH=/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf` so `kata_env.sh install` can overlay the image’s own Asterinas kernel before the smoke test runs.
+- A follow-up PR run showed Docker Hub credentials are not available in this test workflow, so the pre-test image staging now publishes a temporary image to `ghcr.io` with `GITHUB_TOKEN` and the `published` matrix entries consume that staged image instead of pulling directly from Docker Hub.
 
 ## 2026-04-17 Initial findings
 
