@@ -23,10 +23,8 @@ on:
         required: true
         default: true
         type: boolean
-  pull_request:
   push:
     branches:
-      - main
       - asterinas
 
 permissions:

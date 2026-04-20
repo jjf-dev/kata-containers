@@ -1,8 +1,9 @@
 name: Release | Asterinas Kata Bundle
 
 on:
-  pull_request:
   push:
+    branches:
+      - asterinas
   workflow_dispatch:
     inputs:
       release_tag:
