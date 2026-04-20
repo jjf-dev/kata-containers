@@ -48,7 +48,6 @@
 
 - The first unified-matrix attempt showed that using `asterinas/kata:<DOCKER_IMAGE_VERSION>` directly as a job container races with image publication, because job containers are pulled before any steps run.
 - To keep job-level `container:` semantics while guaranteeing ordering, I added a `build-published-kata-image` job into `.github/workflows/test-asterinas-kata.yml` and made the matrix test job depend on it with `needs`.
-- I also wired the `asterinas` guest-kernel matrix entries to export `KATA_ASTERINAS_KERNEL_PATH=/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf` so `kata_env.sh install` can overlay the image’s own Asterinas kernel before the smoke test runs.
 
 ## 2026-04-20 Push-only Asterinas branch CI
 
@@ -59,6 +58,12 @@
 
 - After Docker Hub secrets were added, GitHub Actions started suppressing job outputs whose values contained the secret-like string `asterinas`, which broke `base_image` and `image_repository` outputs.
 - I removed those image-reference values from job outputs and now recompute them directly inside downstream jobs from `DOCKER_IMAGE_VERSION`, so workflow data flow no longer depends on secret-sensitive output values.
+
+## 2026-04-20 Asterinas guest release-bundle path
+
+- The first dual-kernel push run reached the real workload stage and showed that both Linux guest variants passed, while both Asterinas guest variants timed out connecting to the guest agent over vsock.
+- Root cause: the test matrix exported `KATA_ASTERINAS_KERNEL_PATH=/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf`, which made `kata_env.sh install` bypass the repo release tarball and instead overlay the upstream image kernel onto a generic Kata install.
+- Fix: removed the `KATA_ASTERINAS_KERNEL_PATH` override from the workflow so both `linux` and `asterinas` variants install the same repo-owned Asterinas Kata release tarball, and `KATA_GUEST_KERNEL` only selects which packaged guest configuration to use.
 
 ## 2026-04-17 Initial findings
 

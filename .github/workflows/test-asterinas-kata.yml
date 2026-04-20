@@ -114,7 +114,6 @@ jobs:
         --tmpfs /tmp:exec,mode=1777,size=8g
         --tmpfs /var/lib/containerd:exec,mode=755,size=8g
     env:
-      KATA_ASTERINAS_KERNEL_PATH: ${{ matrix.guest_kernel == 'asterinas' && '/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf' || '' }}
       KATA_GUEST_KERNEL: ${{ matrix.guest_kernel }}
       KATA_TEST_IMAGE_LOG_LABEL: ${{ matrix.image_variant == 'source' && 'base image / guest kernel' || 'test image / guest kernel' }}
       KATA_TEST_IMAGE_LOG_VALUE: ${{ matrix.image_variant == 'source' && format('asterinas/asterinas:{0} / {1}', needs.resolve-upstream-asterinas-image.outputs.docker_image_version, matrix.guest_kernel) || format('asterinas/kata:{0} / {1}', needs.resolve-upstream-asterinas-image.outputs.docker_image_version, matrix.guest_kernel) }}
