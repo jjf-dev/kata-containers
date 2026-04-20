@@ -6,7 +6,7 @@ on:
       image_repository:
         description: Docker Hub repository to publish
         required: false
-        default: asterinas/asterinas-kata
+        default: asterinas/kata
         type: string
       kata_static_tarball_release_repo:
         description: GitHub repository used by `kata_env.sh install`
@@ -49,7 +49,7 @@ jobs:
         id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
-          DEFAULT_IMAGE_REPOSITORY: asterinas/asterinas-kata
+          DEFAULT_IMAGE_REPOSITORY: asterinas/kata
           WORKFLOW_IMAGE_REPOSITORY: ${{ inputs.image_repository }}
           WORKFLOW_RELEASE_REPO: ${{ inputs.kata_static_tarball_release_repo }}
           WORKFLOW_STATIC_TARBALL_URL: ${{ inputs.kata_static_tarball_url }}

@@ -83,7 +83,7 @@ The [publish-asterinas-kata-image](https://github.com/kata-containers/kata-conta
 workflow builds the matching Docker Hub image. It resolves the current upstream
 `asterinas/asterinas` `DOCKER_IMAGE_VERSION`, layers the repo-owned
 `tools/kata/` helpers into `/root/asterinas/tools/kata`, runs
-`kata_env.sh install`, and then pushes `asterinas/asterinas-kata` when Docker
+`kata_env.sh install`, and then pushes `asterinas/kata` when Docker
 Hub credentials are available.
 
 If the workflow fails because of some external environmental causes, e.g.

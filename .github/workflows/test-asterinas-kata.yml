@@ -119,11 +119,11 @@ jobs:
       - resolve-upstream-asterinas-image
     runs-on: ubuntu-latest
     container:
-      image: asterinas/asterinas-kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
+      image: asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
       options: *kata_container_options
     env:
       KATA_TEST_IMAGE_LOG_LABEL: test image
-      KATA_TEST_IMAGE_LOG_VALUE: asterinas/asterinas-kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
+      KATA_TEST_IMAGE_LOG_VALUE: asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
     defaults:
       run:
         shell: bash
