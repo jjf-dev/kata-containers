@@ -86,7 +86,8 @@
 
 - Updated `.github/workflows/test-asterinas-kata.yml` so the Kata test job containers now start with `--device /dev/vhost-net:/dev/vhost-net` in their container options.
 - Updated the same container options to also pass through `--device /dev/kvm:/dev/kvm`.
-- Added a quick `ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock` check to the test diagnostics so the CI log shows whether all three host devices are visible inside the job container.
+- Updated the same container options to also pass through `--device /dev/vsock:/dev/vsock`.
+- Added a quick `ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock /dev/vsock` check to the test diagnostics so the CI log shows whether all four host devices are visible inside the job container.
 
 ## 2026-04-17 Initial findings
 
