@@ -70,6 +70,7 @@
 - After the release-bundle path fix, both Linux variants passed and both Asterinas variants still failed, but only after a consistent ~45 second wait for the guest agent vsock handshake.
 - This suggests the Asterinas guest path is at least reaching VM startup and may simply need a longer container creation window than the Linux guest.
 - I increased `runtime.create_container_timeout` in `tools/kata/config/kata-10-container.toml` from the Kata default to `180` seconds so the smoke test gives the Asterinas guest more time to boot and bring up the agent before the runtime fails the workload.
+- I also increased `[agent.kata].dial_timeout` to `180`, because the Kata logs showed the runtime was still enforcing a separate 45-second agent vsock dialing deadline even after the longer container creation timeout was in place.
 
 ## 2026-04-17 Initial findings
 

@@ -7,6 +7,7 @@ file_mem_backend = "/tmp"
 
 [agent.kata]
 enable_debug = true
+dial_timeout = 180
 
 [runtime]
 enable_debug = true
