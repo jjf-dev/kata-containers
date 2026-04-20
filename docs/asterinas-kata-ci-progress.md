@@ -39,6 +39,11 @@
 - Updated `.github/workflows/test-asterinas-kata.yml` so both test jobs now run as a matrix over `KATA_GUEST_KERNEL=linux` and `KATA_GUEST_KERNEL=asterinas`.
 - Both guest-kernel variants continue to use the same smoke-test helpers, container image, workload command, and output expectation, so the CI now checks that Linux and Asterinas guests produce the same expected workload result.
 
+## 2026-04-20 Unified test job matrix
+
+- Collapsed the previous `test-kata-from-source` and `test-published-kata-image` jobs into a single `test-kata` matrix job.
+- The new matrix spans both image variants (`source`, `published`) and both guest kernels (`linux`, `asterinas`), so the workflow still covers the same four combinations with less duplicated YAML.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
