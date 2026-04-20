@@ -77,6 +77,11 @@
 - Updated `tools/kata/run_kata.sh` so CI failures now dump both the repo-normalized log paths (`/tmp/kata-console.log`, `/tmp/kata-qemu-serial.log`) and the raw QEMU log paths actually seen in recent failures (`/tmp/console.log`, `/tmp/qemu-serial.log`).
 - Updated `tools/kata/kata_services.sh` cleanup so those raw QEMU log files are cleared between passes as well.
 
+## 2026-04-20 Increase Kata guest memory to 4G
+
+- The failing Asterinas guest jobs were still launching QEMU with `-m 2048M` and `memory-backend-file ... size=2048M`.
+- Updated `tools/kata/config/kata-10-container.toml` to set `default_memory = 4096` under `[hypervisor.qemu]`, so the CI now boots Kata VMs with at least 4 GiB of guest RAM.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
