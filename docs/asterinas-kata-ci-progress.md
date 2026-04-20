@@ -55,6 +55,11 @@
 - Removed `pull_request` triggers from the Asterinas workflows so they now validate only on `push` to the `asterinas` branch (while keeping `workflow_dispatch`).
 - Because branch-push workflows have access to Docker Hub credentials in this repo, the pre-test image staging in `.github/workflows/test-asterinas-kata.yml` now pushes `asterinas/kata:<DOCKER_IMAGE_VERSION>` directly before the published-image matrix entries start.
 
+## 2026-04-20 Secret-safe image reference wiring
+
+- After Docker Hub secrets were added, GitHub Actions started suppressing job outputs whose values contained the secret-like string `asterinas`, which broke `base_image` and `image_repository` outputs.
+- I removed those image-reference values from job outputs and now recompute them directly inside downstream jobs from `DOCKER_IMAGE_VERSION`, so workflow data flow no longer depends on secret-sensitive output values.
+
 ## 2026-04-17 Initial findings
 
 - Read `requirements.md` and confirmed three requested deliverables:
