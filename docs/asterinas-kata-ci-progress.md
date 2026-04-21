@@ -82,6 +82,12 @@
 - The failing Asterinas guest jobs were still launching QEMU with `-m 2048M` and `memory-backend-file ... size=2048M`.
 - Updated `tools/kata/config/kata-10-container.toml` to set `default_memory = 4096` under `[hypervisor.qemu]`, so the CI now boots Kata VMs with at least 4 GiB of guest RAM.
 
+## 2026-04-21 Disable nesting checks via Kata config
+
+- The Kata runtime source shows that `disable-modern=true` for `vhost-vsock-pci` is automatically enabled when the runtime detects it is running inside another VMM and `disable_nesting_checks = false`.
+- To test the config-only path first, I updated `tools/kata/config/kata-10-container.toml` to set `disable_nesting_checks = true` under `[hypervisor.qemu]`.
+- This should make the QEMU-based Kata runtime behave like bare metal even on nested GitHub runners, without patching the runtime source code directly.
+
 ## 2026-04-20 Expose `/dev/vhost-net` in test containers
 
 - Updated `.github/workflows/test-asterinas-kata.yml` so the Kata test job containers now start with `--device /dev/vhost-net:/dev/vhost-net` in their container options.
@@ -187,3 +193,53 @@
 - The follow-up run still showed the old paths in the final QEMU command line, which indicates the published image is likely carrying an older `/etc/kata-containers/config.d` drop-in that overrides the copied base config.
 - I therefore tightened `install_repo_configs()` to delete the existing `/etc/kata-containers/config.d` tree before installing the repo-owned drop-in used by the test workflow.
 - Even after that cleanup, the published Docker Hub image still behaved like an older runtime/config payload. To keep using the published image while making the test exercise the current Kata release bits, I updated the published-image job to run `bash tools/kata/kata_env.sh install` inside the pulled image before the two Kata passes.
+
+## 2026-04-21 Current CI conclusion
+
+- All three Asterinas workflows now trigger on `push` to the `asterinas` branch, and the latest debugging iterations were validated against branch-push runs rather than pull-request runs.
+- The Docker Hub credential issue is resolved. After adding `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, the `Publish | Asterinas Kata Image` workflow can log in and push successfully.
+- A separate workflow-level bug also got fixed: GitHub Actions started suppressing outputs such as `base_image` and `image_repository` because their values contained the secret-like string `asterinas`. I removed those image references from job outputs and recomputed them directly in downstream jobs.
+- The main Kata test workflow now reliably shows the same split result:
+  - Linux guest variants pass (`source, linux` and `published, linux`)
+  - Asterinas guest variants fail (`source, asterinas` and `published, asterinas`)
+- The Linux successes show the general CI structure is now working: image resolution, image publication, job ordering, privileged container setup, virtio-fs sharing, and the `nerdctl` smoke workload all function end to end.
+- The remaining failure is specific to the Asterinas guest path, not the generic Kata environment.
+
+## 2026-04-21 Asterinas guest failure details
+
+- The host-side failure still appears as a Kata agent connection timeout:
+  - `Failed to Check if grpc server is working`
+  - `timed out connecting to vsock <cid>:1024`
+- That timeout is a secondary symptom. After teaching the workflow to dump raw QEMU logs from `/tmp/console.log` and `/tmp/qemu-serial.log`, the guest-side failure became visible.
+- The Asterinas guest kernel itself panics very early during boot:
+  - `ERROR: Uncaught panic:`
+  - `Cannot handle kernel page fault`
+  - `at /__w/kata-containers/kata-containers/asterinas/ostd/src/arch/x86/trap/mod.rs:174`
+- In other words, the guest never reaches a healthy state where `kata-agent` can serve the vsock endpoint on port `1024`.
+
+## 2026-04-21 Vsock / host-environment conclusion
+
+- I added an explicit comparison workflow, `.github/workflows/compare-asterinas-kata-vsock.yml`, to test host-run `docker run` setups with and without `sudo modprobe vhost_vsock`.
+- That comparison workflow confirmed:
+  - without `modprobe`, `/dev/vsock` is absent but `/dev/vhost-vsock` exists
+  - with `modprobe`, `/dev/vsock` appears and `vhost_vsock` / `vsock` show up in `lsmod`
+- Despite that host-side difference, all four comparison cases still failed on the Asterinas guest path.
+- Conclusion: `sudo modprobe vhost_vsock` changes the host environment, but it is not sufficient to fix the current Asterinas guest failure. The blocker remains inside the guest boot path.
+
+## 2026-04-21 Resource and timeout experiments
+
+- I raised the Kata guest memory from `2048M` to `4096M`.
+- I increased `runtime.create_container_timeout` to `180`.
+- I increased `[agent.kata].dial_timeout` to `180`.
+- These changes did affect the runtime behavior:
+  - QEMU now launches with `-m 4096M`
+  - the host waits longer before declaring the agent unreachable
+- Even with those changes, both Asterinas guest variants still end in the same guest-kernel panic.
+- Conclusion: low guest memory and short agent timeout were not the primary root cause.
+
+## 2026-04-21 Device-model observation
+
+- The failing Asterinas QEMU command line still contains `-device vhost-vsock-pci,disable-modern=true,...`.
+- Linux guests tolerate the current device model, but Asterinas appears to be more sensitive to the environment.
+- However, based on the new console logs, the currently proven root cause is still the early guest kernel panic, not just the host-side inability to reach vsock.
+- The next high-value debugging direction is to compare the Asterinas guest boot path and virtio/vsock expectations against a known-good environment, especially around the modern vs. legacy virtio-vsock setup.

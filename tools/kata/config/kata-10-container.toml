@@ -1,5 +1,6 @@
 [hypervisor.qemu]
 enable_debug = true
+disable_nesting_checks = true
 default_memory = 4096
 shared_fs = "virtio-fs"
 virtio_fs_daemon = "/opt/kata/libexec/virtiofsd"
