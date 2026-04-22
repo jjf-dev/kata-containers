@@ -135,9 +135,6 @@ jobs:
       KATA_STATIC_TARBALL_RELEASE_REPO: ${{ github.repository }}
       KATA_STATIC_TARBALL_URL: ${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_url }}
       KATA_STATIC_TARBALL_SHA256: ${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_sha256 }}
-      KATA_DOC_TEST_NIX_DIR: /tmp/asterinas-kernel-cache/nix
-      KATA_DOC_TEST_CARGO_HOME: /tmp/asterinas-kernel-cache/cargo
-      KATA_DOC_TEST_RUSTUP_HOME: /tmp/asterinas-kernel-cache/rustup
     steps:
       - uses: actions/checkout@v4
 
@@ -181,19 +178,25 @@ jobs:
           set -euxo pipefail
           docker pull "asterinas/asterinas:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}"
 
+      - name: Define Prewarmed Builder Image Name
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "KATA_DOC_TEST_PREBUILT_IMAGE=local/asterinas-doc-prebuilt:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
+
       - name: Prebuild Local Asterinas Kernel
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p "${KATA_DOC_TEST_NIX_DIR}" "${KATA_DOC_TEST_CARGO_HOME}" "${KATA_DOC_TEST_RUSTUP_HOME}"
-          docker run --rm \
+          docker rm -f asterinas-doc-prewarm >/dev/null 2>&1 || true
+          docker run -d --name asterinas-doc-prewarm \
             -v "${HOME}/asterinas:/root/asterinas" \
-            -v "${KATA_DOC_TEST_NIX_DIR}:/nix" \
-            -v "${KATA_DOC_TEST_CARGO_HOME}:/root/.cargo" \
-            -v "${KATA_DOC_TEST_RUSTUP_HOME}:/root/.rustup" \
             -w /root/asterinas \
             "asterinas/asterinas:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}" \
-            bash -lc 'make kernel BOOT_METHOD=qemu-direct'
+            bash -lc 'sleep infinity'
+          docker exec asterinas-doc-prewarm bash -lc 'make kernel BOOT_METHOD=qemu-direct'
+          docker commit asterinas-doc-prewarm "${KATA_DOC_TEST_PREBUILT_IMAGE}"
+          docker rm -f asterinas-doc-prewarm
 
       - name: Replay Documented Kernel-Developer Flow
         shell: bash
@@ -201,7 +204,7 @@ jobs:
           set -euxo pipefail
           python3 -u tools/kata/interactive_doc_test.py \
             --scenario kernel-developer \
-            --asterinas-image "asterinas/asterinas:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}" \
+            --asterinas-image "${KATA_DOC_TEST_PREBUILT_IMAGE}" \
             --asterinas-dir "${HOME}/asterinas" \
             --log-dir "${KATA_DOC_LOG_DIR}"
 
