@@ -20,6 +20,8 @@ jobs:
     outputs:
       asterinas_version: ${{ steps.resolve.outputs.asterinas_version }}
       docker_image_version: ${{ steps.resolve.outputs.docker_image_version }}
+      kata_static_tarball_url: ${{ steps.resolve.outputs.kata_static_tarball_url }}
+      kata_static_tarball_sha256: ${{ steps.resolve.outputs.kata_static_tarball_sha256 }}
     steps:
       - name: Resolve Upstream Asterinas Image Metadata
         id: resolve
@@ -37,17 +39,39 @@ jobs:
             gh api repos/asterinas/asterinas/contents/DOCKER_IMAGE_VERSION?ref=main --jq .content |
               base64 -d | tr -d '\n'
           )"
+          kata_static_tarball_url="$(
+            gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '
+              .assets[]
+              | select(.name | test("^kata-static-.*-asterinas-amd64\\.tar\\.zst$"))
+              | .browser_download_url
+            ' | head -n 1
+          )"
+          test -n "${kata_static_tarball_url}"
+          kata_static_tarball_name="${kata_static_tarball_url##*/}"
+          kata_static_tarball_sha256="$(
+            gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '
+              .assets[]
+              | select(.name | test("^kata-static-.*-asterinas-amd64\\.SHA256SUMS$"))
+              | .browser_download_url
+            ' | head -n 1 |
+            xargs curl -fsSL |
+            awk -v asset_name="${kata_static_tarball_name}" '$2 == asset_name || $2 ~ ("/" asset_name "$") { print $1; exit }'
+          )"
           test -n "${asterinas_version}"
           test -n "${docker_image_version}"
+          test -n "${kata_static_tarball_sha256}"
 
           echo "asterinas_version=${asterinas_version}" >> "${GITHUB_OUTPUT}"
           echo "docker_image_version=${docker_image_version}" >> "${GITHUB_OUTPUT}"
+          echo "kata_static_tarball_url=${kata_static_tarball_url}" >> "${GITHUB_OUTPUT}"
+          echo "kata_static_tarball_sha256=${kata_static_tarball_sha256}" >> "${GITHUB_OUTPUT}"
           {
             echo '## Resolved upstream Asterinas image'
             echo
             echo "- \`VERSION\`: \`${asterinas_version}\`"
             echo "- \`DOCKER_IMAGE_VERSION\`: \`${docker_image_version}\`"
             echo "- Base image: \`asterinas/asterinas:${docker_image_version}\`"
+            echo "- Kata static tarball: \`${kata_static_tarball_url}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   build-published-kata-image:
@@ -88,6 +112,8 @@ jobs:
           build-args: |
             ASTERINAS_BASE_IMAGE=${{ env.ASTERINAS_BASE_IMAGE }}
             KATA_STATIC_TARBALL_RELEASE_REPO=${{ github.repository }}
+            KATA_STATIC_TARBALL_URL=${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_url }}
+            KATA_STATIC_TARBALL_SHA256=${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_sha256 }}
             ASTERINAS_RELEASE_VERSION=${{ needs.resolve-upstream-asterinas-image.outputs.asterinas_version }}
             ASTERINAS_DOCKER_IMAGE_VERSION=${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
 
@@ -119,6 +145,8 @@ jobs:
       KATA_GUEST_KERNEL: ${{ matrix.guest_kernel }}
       KATA_TEST_IMAGE_LOG_LABEL: ${{ matrix.image_variant == 'source' && 'base image / guest kernel' || 'test image / guest kernel' }}
       KATA_TEST_IMAGE_LOG_VALUE: ${{ matrix.image_variant == 'source' && format('asterinas/asterinas:{0} / {1}', needs.resolve-upstream-asterinas-image.outputs.docker_image_version, matrix.guest_kernel) || format('asterinas/kata:{0} / {1}', needs.resolve-upstream-asterinas-image.outputs.docker_image_version, matrix.guest_kernel) }}
+      KATA_STATIC_TARBALL_URL: ${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_url }}
+      KATA_STATIC_TARBALL_SHA256: ${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_sha256 }}
     defaults:
       run:
         shell: bash
