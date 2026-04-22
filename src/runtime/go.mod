@@ -59,8 +59,8 @@ require (
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sys v0.40.0
 	google.golang.org/grpc v1.72.0
-	google.golang.org/protobuf v1.36.7
-	k8s.io/apimachinery v0.33.0
+	google.golang.org/protobuf v1.36.8
+	k8s.io/apimachinery v0.35.4
 	k8s.io/cri-api v0.33.0
 	k8s.io/kubelet v0.33.0
 	tags.cncf.io/container-device-interface v1.0.1
@@ -90,7 +90,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.23.0 // indirect
@@ -129,6 +129,7 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
 	go.opentelemetry.io/otel/metric v1.40.0 // indirect
+	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
@@ -138,7 +139,8 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
+	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
+	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
 
