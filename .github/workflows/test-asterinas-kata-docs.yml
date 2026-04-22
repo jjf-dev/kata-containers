@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      KATA_DOC_LOG_DIR: ${{ runner.temp }}/asterinas-kata-doc-logs/end-user
+      KATA_DOC_LOG_DIR: /tmp/asterinas-kata-doc-logs/end-user
     steps:
       - uses: actions/checkout@v4
 
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      KATA_DOC_LOG_DIR: ${{ runner.temp }}/asterinas-kata-doc-logs/kernel-developer
+      KATA_DOC_LOG_DIR: /tmp/asterinas-kata-doc-logs/kernel-developer
       KATA_STATIC_TARBALL_RELEASE_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4

@@ -40,6 +40,7 @@
   - CI must keep using `docker.io/alpine:latest`
 - CI wiring note:
   - the kernel-developer workflow path exports `KATA_STATIC_TARBALL_RELEASE_REPO=${GITHUB_REPOSITORY}` so `tools/kata/kata_env.sh install` validates this repository's published Asterinas Kata release assets instead of defaulting to upstream `kata-containers/kata-containers`
+  - the first GitHub dispatch attempt exposed a GitHub expression-validation issue: `runner.temp` is not accepted in this workflow's job-level `env`, so the log directory paths were normalized to plain `/tmp/...`
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes
