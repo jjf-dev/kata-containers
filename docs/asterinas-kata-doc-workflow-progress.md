@@ -51,6 +51,7 @@
   - configuration comparison result: before the local-kernel override, both the end-user flow and the kernel-developer flow start Kata from the same default config target, `/opt/kata/share/defaults/kata-containers/configuration.toml -> configuration-asterinas.toml`
   - on interactive failures, `tools/kata/interactive_doc_test.py` now also dumps `/tmp/kata-console.log`, `/tmp/console.log`, `/tmp/kata-qemu-serial.log`, `/tmp/qemu-serial.log`, `/tmp/containerd.log`, and `/tmp/kata-syslog.log` so QEMU-side failures are visible immediately
   - to keep the interactive developer replay within the expected post-install budget, the CI job now prebuilds the mounted `$HOME/asterinas` kernel once before invoking the `pexpect` driver; the driver still runs the documented `make kernel BOOT_METHOD=qemu-direct` command inside the container, but that command should now hit an already-built tree and return quickly
+  - a deeper replay hang was then traced to the Python driver itself rather than Kata: `DockerShell.run()` sent the target command, `status=$?`, and the exit-marker `printf` as three separate queued lines, which is fragile for long-running interactive commands. The driver now wraps each command and exit-marker emission into one shell line so it can no longer stall waiting for a marker that was never executed
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes

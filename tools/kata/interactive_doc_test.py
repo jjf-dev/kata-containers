@@ -180,11 +180,10 @@ class DockerShell:
     def run(self, command: str, timeout: int = 300, check: bool = True) -> str:
         assert self.child is not None
         marker = f"__DOC_TEST_EXIT__{uuid.uuid4().hex}__:"
-        self.child.sendline(command)
-        self.child.sendline("status=$?")
-        self.child.sendline(f"printf '{marker}%s\\n' \"$status\"")
+        wrapped_command = f"{command}; __doc_test_status=$?; printf '{marker}%s\\n' \"$__doc_test_status\""
+        self.child.sendline(wrapped_command)
         self.child.expect(re.compile(re.escape(marker) + r"(\d+)\r?\n"), timeout=timeout)
-        output = clean_command_output(command, self.child.before)
+        output = clean_command_output(wrapped_command, self.child.before)
         status = int(self.child.match.group(1))
         self.child.expect(re.escape(self.prompt), timeout=60)
         if check and status != 0:
