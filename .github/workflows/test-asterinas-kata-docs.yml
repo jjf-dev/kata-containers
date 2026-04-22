@@ -178,6 +178,16 @@ jobs:
           set -euxo pipefail
           docker pull "asterinas/asterinas:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}"
 
+      - name: Prebuild Local Asterinas Kernel
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            -v "${HOME}/asterinas:/root/asterinas" \
+            -w /root/asterinas \
+            "asterinas/asterinas:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}" \
+            bash -lc 'make kernel BOOT_METHOD=qemu-direct'
+
       - name: Replay Documented Kernel-Developer Flow
         shell: bash
         run: |

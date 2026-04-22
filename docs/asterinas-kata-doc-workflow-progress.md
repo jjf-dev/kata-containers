@@ -50,6 +50,7 @@
   - after that pre-resolution change, the next push showed a format mismatch in the release `SHA256SUMS`: the checksum file records the tarball with a full path suffix instead of only the basename, so the workflow-side SHA lookup now accepts either an exact basename match or a trailing `/${asset_name}`
   - configuration comparison result: before the local-kernel override, both the end-user flow and the kernel-developer flow start Kata from the same default config target, `/opt/kata/share/defaults/kata-containers/configuration.toml -> configuration-asterinas.toml`
   - on interactive failures, `tools/kata/interactive_doc_test.py` now also dumps `/tmp/kata-console.log`, `/tmp/console.log`, `/tmp/kata-qemu-serial.log`, `/tmp/qemu-serial.log`, `/tmp/containerd.log`, and `/tmp/kata-syslog.log` so QEMU-side failures are visible immediately
+  - to keep the interactive developer replay within the expected post-install budget, the CI job now prebuilds the mounted `$HOME/asterinas` kernel once before invoking the `pexpect` driver; the driver still runs the documented `make kernel BOOT_METHOD=qemu-direct` command inside the container, but that command should now hit an already-built tree and return quickly
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes
