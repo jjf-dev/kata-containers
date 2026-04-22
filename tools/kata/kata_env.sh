@@ -436,7 +436,7 @@ install_kata_from_static_tarball() {
 
   echo "Installing Kata static tarball from ${static_tarball_url}"
   rm -rf /opt/kata
-  tar --zstd -xf "${static_tarball_path}" -C / opt/kata
+  tar --zstd -xf "${static_tarball_path}" -C /
   test -d /opt/kata
   {
     printf 'static-tarball-url %s\n' "${static_tarball_url}"

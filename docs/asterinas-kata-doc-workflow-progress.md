@@ -45,6 +45,7 @@
   - based on user feedback, the `pexpect` driver now streams child output to stdout and prints explicit phase markers before long-running commands such as `kata_env.sh install`, `nerdctl run`, and `make kernel`
   - the guest-entry helper now fails fast when `nerdctl run -it ...` falls back to the outer shell instead of opening the inner guest shell, so proxy/image failures no longer look like a generic hang
   - CI logs showed the real long pole inside `tools/kata/kata_env.sh install`: the static tarball path unpacked into a temporary directory and then copied a second 4.7 GiB tree into `/opt`; this has now been collapsed into a direct `tar --zstd -xf ... -C / opt/kata` install path, with explicit progress messages around the install phases
+  - the next CI log sample exposed a follow-on bug in that optimization: the tarball did not contain a directly addressable `opt/kata` member for selective extraction, so the install now unpacks the verified tarball directly at `/` instead
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes
