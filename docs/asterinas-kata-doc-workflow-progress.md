@@ -48,6 +48,8 @@
   - the next CI log sample exposed a follow-on bug in that optimization: the tarball did not contain a directly addressable `opt/kata` member for selective extraction, so the install now unpacks the verified tarball directly at `/` instead
   - the latest CI round also exposed an unrelated but real stability issue in `Publish | Asterinas Kata Image`: the Docker build resolved the latest release URL from inside the container and hit unauthenticated GitHub API rate limits, so the workflows now resolve the tarball URL and SHA256 up front and pass them into the container explicitly
   - after that pre-resolution change, the next push showed a format mismatch in the release `SHA256SUMS`: the checksum file records the tarball with a full path suffix instead of only the basename, so the workflow-side SHA lookup now accepts either an exact basename match or a trailing `/${asset_name}`
+  - configuration comparison result: before the local-kernel override, both the end-user flow and the kernel-developer flow start Kata from the same default config target, `/opt/kata/share/defaults/kata-containers/configuration.toml -> configuration-asterinas.toml`
+  - on interactive failures, `tools/kata/interactive_doc_test.py` now also dumps `/tmp/kata-console.log`, `/tmp/console.log`, `/tmp/kata-qemu-serial.log`, `/tmp/qemu-serial.log`, `/tmp/containerd.log`, and `/tmp/kata-syslog.log` so QEMU-side failures are visible immediately
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes

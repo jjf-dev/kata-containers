@@ -218,33 +218,73 @@ def announce(message: str) -> None:
     print(message, flush=True)
 
 
+def dump_kata_debug_logs(shell: DockerShell, context: str) -> None:
+    announce(f"[debug] dumping Kata/QEMU logs after {context}")
+    for log_path in (
+        "/tmp/kata-console.log",
+        "/tmp/console.log",
+        "/tmp/kata-qemu-serial.log",
+        "/tmp/qemu-serial.log",
+        "/tmp/containerd.log",
+        "/tmp/kata-syslog.log",
+    ):
+        output = shell.run(
+            f'test -f {shlex.quote(log_path)} && {{ echo "--- {log_path} ---"; tail -n 200 {shlex.quote(log_path)}; }} || true',
+            check=False,
+            timeout=60,
+        )
+        if output:
+            announce(output)
+
+
+def log_active_kata_configs(shell: DockerShell, label: str) -> None:
+    announce(f"[{label}] active Kata default config:")
+    announce(
+        shell.run(
+            "readlink -f /opt/kata/share/defaults/kata-containers/configuration.toml",
+            timeout=60,
+        )
+    )
+    announce(f"[{label}] active runtime config:")
+    announce(
+        shell.run(
+            "readlink -f /etc/kata-containers/configuration.toml 2>/dev/null || echo /etc/kata-containers/configuration.toml",
+            timeout=60,
+        )
+    )
+
+
 def run_guest_workload(shell: DockerShell, workload_image: str, host_proc_version: str, container_name: str = "foo") -> tuple[str, str]:
     announce(f"[guest] launching workload container {container_name} from {workload_image}")
     shell.run(f"nerdctl rm -f {shlex.quote(container_name)} >/dev/null 2>&1 || true", check=False)
-    shell.enter_guest(
-        " ".join(
-            [
-                "nerdctl",
-                "run",
-                "--cgroup-manager",
-                "cgroupfs",
-                "--net",
-                "none",
-                "--runtime",
-                "io.containerd.kata.v2",
-                "--name",
-                shlex.quote(container_name),
-                "-it",
-                shlex.quote(workload_image),
-            ]
-        ),
-        timeout=900,
-    )
-    guest_proc_version = shell.run("cat /proc/version")
-    alpine_release = shell.run("cat /etc/alpine-release")
-    shell.exit_guest()
-    announce(f"[guest] removing workload container {container_name}")
-    shell.run(f"nerdctl rm -f {shlex.quote(container_name)}")
+    try:
+        shell.enter_guest(
+            " ".join(
+                [
+                    "nerdctl",
+                    "run",
+                    "--cgroup-manager",
+                    "cgroupfs",
+                    "--net",
+                    "none",
+                    "--runtime",
+                    "io.containerd.kata.v2",
+                    "--name",
+                    shlex.quote(container_name),
+                    "-it",
+                    shlex.quote(workload_image),
+                ]
+            ),
+            timeout=900,
+        )
+        guest_proc_version = shell.run("cat /proc/version")
+        alpine_release = shell.run("cat /etc/alpine-release")
+        shell.exit_guest()
+        announce(f"[guest] removing workload container {container_name}")
+        shell.run(f"nerdctl rm -f {shlex.quote(container_name)}")
+    except Exception:
+        dump_kata_debug_logs(shell, f"failed nerdctl run for {container_name}")
+        raise
 
     if guest_proc_version.strip() == host_proc_version.strip():
         raise ScenarioError("Guest /proc/version unexpectedly matches the outer container /proc/version")
@@ -285,6 +325,7 @@ def run_end_user_scenario(args: argparse.Namespace) -> pathlib.Path:
         shell.run("cd /root/asterinas")
         announce("[end-user] starting Kata background services")
         shell.run("./tools/kata/kata_services.sh start", timeout=300)
+        log_active_kata_configs(shell, "end-user")
         status_output = shell.run("./tools/kata/kata_services.sh status")
         if "Kata services are running." not in status_output:
             raise ScenarioError(f"Unexpected service status output:\n{status_output}")
@@ -339,6 +380,7 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
         shell.run("./tools/kata/kata_env.sh install", timeout=3600)
         announce("[kernel-developer] starting Kata background services")
         shell.run("./tools/kata/kata_services.sh start", timeout=300)
+        log_active_kata_configs(shell, "kernel-developer")
         status_output = shell.run("./tools/kata/kata_services.sh status")
         if "Kata services are running." not in status_output:
             raise ScenarioError(f"Unexpected service status output:\n{status_output}")
