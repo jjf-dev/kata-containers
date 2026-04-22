@@ -135,9 +135,9 @@ jobs:
       KATA_STATIC_TARBALL_RELEASE_REPO: ${{ github.repository }}
       KATA_STATIC_TARBALL_URL: ${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_url }}
       KATA_STATIC_TARBALL_SHA256: ${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_sha256 }}
-      KATA_DOC_TEST_NIX_DIR: ${{ runner.temp }}/asterinas-kernel-cache/nix
-      KATA_DOC_TEST_CARGO_HOME: ${{ runner.temp }}/asterinas-kernel-cache/cargo
-      KATA_DOC_TEST_RUSTUP_HOME: ${{ runner.temp }}/asterinas-kernel-cache/rustup
+      KATA_DOC_TEST_NIX_DIR: /tmp/asterinas-kernel-cache/nix
+      KATA_DOC_TEST_CARGO_HOME: /tmp/asterinas-kernel-cache/cargo
+      KATA_DOC_TEST_RUSTUP_HOME: /tmp/asterinas-kernel-cache/rustup
     steps:
       - uses: actions/checkout@v4
 

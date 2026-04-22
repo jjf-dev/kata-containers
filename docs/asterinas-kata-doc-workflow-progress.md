@@ -53,6 +53,7 @@
   - to keep the interactive developer replay within the expected post-install budget, the CI job now prebuilds the mounted `$HOME/asterinas` kernel once before invoking the `pexpect` driver; the driver still runs the documented `make kernel BOOT_METHOD=qemu-direct` command inside the container, but that command should now hit an already-built tree and return quickly
   - a deeper replay hang was then traced to the Python driver itself rather than Kata: `DockerShell.run()` sent the target command, `status=$?`, and the exit-marker `printf` as three separate queued lines, which is fragile for long-running interactive commands. The driver now wraps each command and exit-marker emission into one shell line so it can no longer stall waiting for a marker that was never executed
   - the newest transcript showed the remaining long pole after `kata_env.sh install`: the interactive `make kernel BOOT_METHOD=qemu-direct` reinitialized `/nix`, cargo, and rustup state inside the developer container. The workflow now prebuilds with shared cache mounts and passes the same cache mounts into the interactive container so the documented in-container `make kernel` can reuse the same build state
+  - the first cache-sharing attempt repeated the earlier workflow-expression mistake by putting `runner.temp` into job-level `env`; the cache directories are now normalized to plain `/tmp/asterinas-kernel-cache/...`
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes
