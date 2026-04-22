@@ -51,7 +51,7 @@ jobs:
               | .browser_download_url
             ' | head -n 1 |
             xargs curl -fsSL |
-            awk -v asset_name="${kata_static_tarball_name}" '$2 == asset_name { print $1; exit }'
+            awk -v asset_name="${kata_static_tarball_name}" '$2 == asset_name || $2 ~ ("/" asset_name "$") { print $1; exit }'
           )"
           test -n "${asterinas_version}"
           test -n "${docker_image_version}"

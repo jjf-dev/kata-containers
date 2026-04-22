@@ -47,6 +47,7 @@
   - CI logs showed the real long pole inside `tools/kata/kata_env.sh install`: the static tarball path unpacked into a temporary directory and then copied a second 4.7 GiB tree into `/opt`; this has now been collapsed into a direct `tar --zstd -xf ... -C / opt/kata` install path, with explicit progress messages around the install phases
   - the next CI log sample exposed a follow-on bug in that optimization: the tarball did not contain a directly addressable `opt/kata` member for selective extraction, so the install now unpacks the verified tarball directly at `/` instead
   - the latest CI round also exposed an unrelated but real stability issue in `Publish | Asterinas Kata Image`: the Docker build resolved the latest release URL from inside the container and hit unauthenticated GitHub API rate limits, so the workflows now resolve the tarball URL and SHA256 up front and pass them into the container explicitly
+  - after that pre-resolution change, the next push showed a format mismatch in the release `SHA256SUMS`: the checksum file records the tarball with a full path suffix instead of only the basename, so the workflow-side SHA lookup now accepts either an exact basename match or a trailing `/${asset_name}`
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes
