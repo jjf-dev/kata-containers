@@ -15,7 +15,6 @@ docker run --rm -it \
     --device /dev/kvm \
     --device /dev/vhost-net \
     --device /dev/vhost-vsock \
-    --device /dev/vsock \
     --tmpfs /tmp:exec,mode=1777,size=8g \
     --tmpfs /var/lib/containerd:exec,mode=755,size=8g \
     asterinas/kata:${ASTERINAS_IMAGE_TAG}
@@ -75,7 +74,6 @@ docker run --rm -it \
     --device /dev/kvm \
     --device /dev/vhost-net \
     --device /dev/vhost-vsock \
-    --device /dev/vsock \
     --tmpfs /tmp:exec,mode=1777,size=8g \
     --tmpfs /var/lib/containerd:exec,mode=755,size=8g \
     -v "${ASTERINAS_SRC}:/root/asterinas" \
@@ -113,6 +111,10 @@ nerdctl run \
 If Docker Hub is temporarily unreachable during local validation, you can use
 `docker.1ms.run/alpine:latest` here as well. CI should keep using
 `docker.io/alpine:latest`.
+
+If `/dev/vsock` also exists on your host, it is fine to pass it through too,
+but the documented minimum setup only requires `/dev/kvm`, `/dev/vhost-net`,
+and `/dev/vhost-vsock`.
 
 You can also point Kata to a locally built guest kernel. Edit
 `/etc/kata-containers/configuration.toml` and set `kernel` to the path of your

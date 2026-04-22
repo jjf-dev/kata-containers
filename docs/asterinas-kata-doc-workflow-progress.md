@@ -41,6 +41,7 @@
 - CI wiring note:
   - the kernel-developer workflow path exports `KATA_STATIC_TARBALL_RELEASE_REPO=${GITHUB_REPOSITORY}` so `tools/kata/kata_env.sh install` validates this repository's published Asterinas Kata release assets instead of defaulting to upstream `kata-containers/kata-containers`
   - the first GitHub dispatch attempt exposed a GitHub expression-validation issue: `runner.temp` is not accepted in this workflow's job-level `env`, so the log directory paths were normalized to plain `/tmp/...`
+  - the first push run also showed that `/dev/vsock` is not guaranteed on GitHub-hosted runners, while `/dev/kvm`, `/dev/vhost-net`, and `/dev/vhost-vsock` are present; the workflow and `pexpect` driver now treat `/dev/vsock` as optional instead of mandatory
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes

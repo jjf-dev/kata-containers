@@ -61,7 +61,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock /dev/vsock
+          ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock
+          ls -l /dev/vsock || true
 
       - name: Install pexpect if Needed
         shell: bash
@@ -129,7 +130,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock /dev/vsock
+          ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock
+          ls -l /dev/vsock || true
 
       - name: Install pexpect if Needed
         shell: bash

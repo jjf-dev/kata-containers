@@ -84,6 +84,29 @@ def outer_docker_env_args() -> list[str]:
     return args
 
 
+def outer_docker_device_args() -> list[str]:
+    args: list[str] = []
+    required_devices = (
+        "/dev/kvm",
+        "/dev/vhost-net",
+        "/dev/vhost-vsock",
+    )
+    optional_devices = (
+        "/dev/vsock",
+    )
+
+    for device_path in required_devices:
+        if not pathlib.Path(device_path).exists():
+            raise ScenarioError(f"Required device is missing on the host: {device_path}")
+        args.extend(["--device", device_path])
+
+    for device_path in optional_devices:
+        if pathlib.Path(device_path).exists():
+            args.extend(["--device", device_path])
+
+    return args
+
+
 class DockerShell:
     def __init__(self, name: str, docker_args: list[str], transcript_path: pathlib.Path) -> None:
         self.name = name
@@ -217,14 +240,7 @@ def run_end_user_scenario(args: argparse.Namespace) -> pathlib.Path:
             "--cgroupns",
             "host",
             "--privileged",
-            "--device",
-            "/dev/kvm",
-            "--device",
-            "/dev/vhost-net",
-            "--device",
-            "/dev/vhost-vsock",
-            "--device",
-            "/dev/vsock",
+            *outer_docker_device_args(),
             "--tmpfs",
             "/tmp:exec,mode=1777,size=8g",
             "--tmpfs",
@@ -267,14 +283,7 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
             "--cgroupns",
             "host",
             "--privileged",
-            "--device",
-            "/dev/kvm",
-            "--device",
-            "/dev/vhost-net",
-            "--device",
-            "/dev/vhost-vsock",
-            "--device",
-            "/dev/vsock",
+            *outer_docker_device_args(),
             "--tmpfs",
             "/tmp:exec,mode=1777,size=8g",
             "--tmpfs",
