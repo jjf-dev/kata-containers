@@ -55,6 +55,7 @@
   - the newest transcript showed the remaining long pole after `kata_env.sh install`: the interactive `make kernel BOOT_METHOD=qemu-direct` reinitialized `/nix`, cargo, and rustup state inside the developer container. The workflow now prebuilds with shared cache mounts and passes the same cache mounts into the interactive container so the documented in-container `make kernel` can reuse the same build state
   - the first cache-sharing attempt repeated the earlier workflow-expression mistake by putting `runner.temp` into job-level `env`; the cache directories are now normalized to plain `/tmp/asterinas-kernel-cache/...`
   - a follow-up CI attempt showed that directly bind-mounting empty cache directories onto `/nix` and `/root/.cargo` hid the builder image's existing tooling (`nix-build`, `/root/.cargo/env`, etc.). The workflow now uses a safer prewarm approach instead: it prebuilds the kernel in a temporary container, commits that container to a local one-off image, and replays the documented interactive developer flow on top of that prewarmed image
+  - the first prewarmed-image replay then exposed one more subtle issue: `docker commit` preserved the prewarm container's running command, so the derived image no longer dropped into an interactive shell by default. The `pexpect` driver now explicitly appends `bash` when starting both the end-user and kernel-developer outer containers
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes

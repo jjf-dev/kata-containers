@@ -334,6 +334,7 @@ def run_end_user_scenario(args: argparse.Namespace) -> pathlib.Path:
             "/var/lib/containerd:exec,mode=755,size=8g",
             *outer_docker_env_args(),
             args.kata_image,
+            "bash",
         ],
         transcript_path,
     ).start()
@@ -387,6 +388,7 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
             "-w",
             "/root/kata-containers",
             args.asterinas_image,
+            "bash",
         ],
         transcript_path,
     ).start()
