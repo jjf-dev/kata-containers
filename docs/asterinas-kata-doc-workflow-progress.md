@@ -61,6 +61,7 @@
   - user review also requested richer release notes: the Asterinas repo/ref line should include the resolved Asterinas commit id, and the release notes should explicitly name the kata-containers commit id as well
   - the same release-asset pre-resolution fix also needs to be applied to `.github/workflows/test-asterinas-kata.yml`, because its published-image matrix still calls `tools/kata/kata_env.sh install` with only `KATA_STATIC_TARBALL_RELEASE_REPO`, which reintroduces GitHub API rate-limit failures inside the job container
   - the latest kernel-developer replay with `jjf-dev/asterinas@kata-support` got through both the packaged-kernel run and the local-kernel run; the remaining failure was only the final cleanup command using a relative `./tools/kata/kata_services.sh stop` after the script had changed directory into `/root/asterinas`. That cleanup path is now switched to the absolute repo path under `/root/kata-containers/tools/kata/kata_services.sh`
+  - per latest review, the CI-only prewarm/prebuild shortcut has been removed from `.github/workflows/test-asterinas-kata-docs.yml` so the kernel-developer path now goes back to launching the documented `asterinas/asterinas` image directly during replay
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes
