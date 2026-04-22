@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  ASTERINAS_REPOSITORY: jjf-dev/asterinas
+  ASTERINAS_REF: kata-support
+
 jobs:
   resolve-upstream-asterinas-image:
     name: Resolve upstream Asterinas image
@@ -141,8 +145,8 @@ jobs:
       - name: Check Out Asterinas Source
         uses: actions/checkout@v4
         with:
-          repository: asterinas/asterinas
-          ref: v${{ needs.resolve-upstream-asterinas-image.outputs.asterinas_version }}
+          repository: ${{ env.ASTERINAS_REPOSITORY }}
+          ref: ${{ env.ASTERINAS_REF }}
           path: asterinas-src
 
       - name: Prepare Local Asterinas Tree

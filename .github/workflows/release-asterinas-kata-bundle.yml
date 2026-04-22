@@ -59,6 +59,8 @@ jobs:
   build-asterinas-kernel:
     name: Build Asterinas kernel artifact
     runs-on: ubuntu-22.04
+    outputs:
+      asterinas_commit: ${{ steps.asterinas_commit.outputs.value }}
     container:
       image: ${{ inputs.asterinas_builder_image || 'asterinas/asterinas:0.17.1-20260319' }}
     steps:
@@ -68,6 +70,13 @@ jobs:
           repository: ${{ env.ASTERINAS_REPOSITORY }}
           ref: ${{ env.ASTERINAS_REF }}
           path: asterinas
+
+      - name: Record Asterinas Commit
+        id: asterinas_commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "value=$(git -C asterinas rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: Build qemu-direct Kernels
         shell: bash
@@ -153,6 +162,7 @@ jobs:
           ASTERINAS_TDX_KERNEL: ${{ github.workspace }}/build/asterinas-kernel/aster-kernel-osdk-bin.qemu_elf-tdx
           ASTERINAS_REPOSITORY: ${{ env.ASTERINAS_REPOSITORY }}
           ASTERINAS_REF: ${{ env.ASTERINAS_REF }}
+          ASTERINAS_COMMIT: ${{ needs.build-asterinas-kernel.outputs.asterinas_commit }}
           ASTERINAS_BUILDER_IMAGE: ${{ env.ASTERINAS_BUILDER_IMAGE }}
           FORCE_RUNTIME_BUILD: ${{ env.FORCE_RUNTIME_BUILD }}
           KATA_STATIC_RELEASE_REPOSITORY: ${{ env.KATA_STATIC_RELEASE_REPOSITORY }}
