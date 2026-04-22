@@ -1,0 +1,169 @@
+name: Test | Asterinas Kata Docs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - asterinas
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-upstream-asterinas-image:
+    name: Resolve upstream Asterinas image
+    runs-on: ubuntu-latest
+    outputs:
+      asterinas_version: ${{ steps.resolve.outputs.asterinas_version }}
+      docker_image_version: ${{ steps.resolve.outputs.docker_image_version }}
+    steps:
+      - name: Resolve Upstream Asterinas Image Metadata
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          asterinas_version="$(
+            gh api repos/asterinas/asterinas/contents/VERSION?ref=main --jq .content |
+              base64 -d | tr -d '\n'
+          )"
+          docker_image_version="$(
+            gh api repos/asterinas/asterinas/contents/DOCKER_IMAGE_VERSION?ref=main --jq .content |
+              base64 -d | tr -d '\n'
+          )"
+          test -n "${asterinas_version}"
+          test -n "${docker_image_version}"
+
+          echo "asterinas_version=${asterinas_version}" >> "${GITHUB_OUTPUT}"
+          echo "docker_image_version=${docker_image_version}" >> "${GITHUB_OUTPUT}"
+          {
+            echo '## Resolved upstream Asterinas image'
+            echo
+            echo "- \`VERSION\`: \`${asterinas_version}\`"
+            echo "- \`DOCKER_IMAGE_VERSION\`: \`${docker_image_version}\`"
+            echo "- Base image: \`asterinas/asterinas:${docker_image_version}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  test-documented-end-user-flow:
+    name: Test documented end-user flow
+    needs:
+      - resolve-upstream-asterinas-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      KATA_DOC_LOG_DIR: ${{ runner.temp }}/asterinas-kata-doc-logs/end-user
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Host Device Visibility
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock /dev/vsock
+
+      - name: Install pexpect if Needed
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if ! python3 - <<'PY'
+          import importlib.util
+          import sys
+          sys.exit(0 if importlib.util.find_spec("pexpect") else 1)
+          PY
+          then
+            python3 -m pip install --user pexpect
+          fi
+
+      - name: Pull Published Asterinas Kata Image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker pull "asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}"
+
+      - name: Replay Documented End-User Flow
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 tools/kata/interactive_doc_test.py \
+            --scenario end-user \
+            --kata-image "asterinas/kata:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}" \
+            --log-dir "${KATA_DOC_LOG_DIR}"
+
+      - name: Upload End-User Flow Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asterinas-kata-doc-end-user-logs
+          path: ${{ env.KATA_DOC_LOG_DIR }}
+          if-no-files-found: ignore
+
+  test-documented-kernel-developer-flow:
+    name: Test documented kernel-developer flow
+    needs:
+      - resolve-upstream-asterinas-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      KATA_DOC_LOG_DIR: ${{ runner.temp }}/asterinas-kata-doc-logs/kernel-developer
+      KATA_STATIC_TARBALL_RELEASE_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Out Asterinas Source
+        uses: actions/checkout@v4
+        with:
+          repository: asterinas/asterinas
+          path: asterinas-src
+
+      - name: Prepare Local Asterinas Tree
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf "${HOME}/asterinas"
+          mkdir -p "${HOME}/asterinas"
+          rsync -a --delete "${GITHUB_WORKSPACE}/asterinas-src/" "${HOME}/asterinas/"
+
+      - name: Check Host Device Visibility
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ls -l /dev/kvm /dev/vhost-net /dev/vhost-vsock /dev/vsock
+
+      - name: Install pexpect if Needed
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if ! python3 - <<'PY'
+          import importlib.util
+          import sys
+          sys.exit(0 if importlib.util.find_spec("pexpect") else 1)
+          PY
+          then
+            python3 -m pip install --user pexpect
+          fi
+
+      - name: Pull Published Asterinas Builder Image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker pull "asterinas/asterinas:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}"
+
+      - name: Replay Documented Kernel-Developer Flow
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 tools/kata/interactive_doc_test.py \
+            --scenario kernel-developer \
+            --asterinas-image "asterinas/asterinas:${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}" \
+            --asterinas-dir "${HOME}/asterinas" \
+            --log-dir "${KATA_DOC_LOG_DIR}"
+
+      - name: Upload Kernel-Developer Flow Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asterinas-kata-doc-kernel-developer-logs
+          path: ${{ env.KATA_DOC_LOG_DIR }}
+          if-no-files-found: ignore
