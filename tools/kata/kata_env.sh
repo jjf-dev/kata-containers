@@ -431,23 +431,20 @@ install_kata_from_payload_image() {
 install_kata_from_static_tarball() {
   source_marker_path="${KATA_INSTALL_SOURCE_MARKER:-/opt/kata/.kata-install-source}"
   static_tarball_url="$(resolve_static_tarball_url)"
-  extract_dir="${KATA_STATIC_EXTRACT_DIR:-/tmp/kata-static-extract}"
   static_tarball_sha256="$(resolve_static_tarball_sha256)"
   static_tarball_path="$(prepare_cached_static_tarball)"
 
-  rm -rf "${extract_dir}"
-  install -d -m 0755 "${extract_dir}"
-  tar --zstd -xf "${static_tarball_path}" -C "${extract_dir}"
-
-  test -d "${extract_dir}/opt/kata"
+  echo "Installing Kata static tarball from ${static_tarball_url}"
   rm -rf /opt/kata
-  cp -a "${extract_dir}/opt/kata" /opt/
+  tar --zstd -xf "${static_tarball_path}" -C / opt/kata
+  test -d /opt/kata
   {
     printf 'static-tarball-url %s\n' "${static_tarball_url}"
     printf 'static-tarball-sha256 %s\n' "${static_tarball_sha256}"
   } > "${source_marker_path}"
   test -x /opt/kata/bin/kata-runtime
   test -x /opt/kata/bin/containerd-shim-kata-v2
+  echo "Installed Kata static tarball into /opt/kata"
 }
 
 patch_qemu_config_for_asterinas() {
@@ -545,9 +542,11 @@ wait_for_containerd_ready() {
 }
 
 run_install_task() {
+  echo "Installing required distro packages"
   install_required_packages
 
   if need_nerdctl_install; then
+    echo "Installing nerdctl ${NERDCTL_VERSION}"
     download_release_asset \
       /tmp/nerdctl.tgz \
       "https://github.com/containerd/nerdctl/releases/download/${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION#v}-linux-amd64.tar.gz"
@@ -555,6 +554,7 @@ run_install_task() {
   fi
 
   if should_install_crictl && need_crictl_install; then
+    echo "Installing crictl ${CRICTL_VERSION}"
     download_release_asset \
       /tmp/crictl.tgz \
       "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz"
@@ -563,10 +563,13 @@ run_install_task() {
 
   if need_kata_install; then
     if [ -n "${KATA_ASTERINAS_KERNEL_PATH:-}" ] && [ -f "${KATA_ASTERINAS_KERNEL_PATH}" ]; then
+      echo "Installing Kata with local Asterinas kernel overlay"
       install_kata_from_asterinas_kernel_overlay
     elif [ -n "${KATA_STATIC_TARBALL_URL:-}" ] || [ -n "${KATA_STATIC_TARBALL_RELEASE_REPO:-}" ]; then
+      echo "Installing Kata from static tarball"
       install_kata_from_static_tarball
     else
+      echo "Installing Kata from payload image"
       install_kata_from_payload_image
     fi
   fi
@@ -574,6 +577,7 @@ run_install_task() {
   install -d -m 0755 /usr/local/bin
   ln -sf /opt/kata/bin/kata-runtime /usr/local/bin/kata-runtime
   ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-v2
+  echo "Kata install task completed"
 }
 
 run_check_task() {
