@@ -401,9 +401,9 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
         announce("[kernel-developer] running tools/kata/kata_env.sh install")
         shell.run("./tools/kata/kata_env.sh install", timeout=3600)
         announce("[kernel-developer] starting Kata background services")
-        shell.run("./tools/kata/kata_services.sh start", timeout=300)
+        shell.run("/root/kata-containers/tools/kata/kata_services.sh start", timeout=300)
         log_active_kata_configs(shell, "kernel-developer")
-        status_output = shell.run("./tools/kata/kata_services.sh status")
+        status_output = shell.run("/root/kata-containers/tools/kata/kata_services.sh status")
         if "Kata services are running." not in status_output:
             raise ScenarioError(f"Unexpected service status output:\n{status_output}")
         packaged_guest_proc_version, packaged_alpine_release = run_guest_workload(
@@ -435,7 +435,7 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
         announce(f"[kernel-developer] local-kernel guest /proc/version: {local_guest_proc_version}")
         announce(f"[kernel-developer] local-kernel alpine release: {local_alpine_release}")
         announce("[kernel-developer] stopping Kata background services")
-        shell.run("./tools/kata/kata_services.sh stop", timeout=300)
+        shell.run("/root/kata-containers/tools/kata/kata_services.sh stop", timeout=300)
         return transcript_path
     finally:
         shell.close()
