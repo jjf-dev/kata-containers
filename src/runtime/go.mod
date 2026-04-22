@@ -20,7 +20,7 @@ require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/ttrpc v1.2.7
 	github.com/containerd/typeurl/v2 v2.2.3
-	github.com/containernetworking/plugins v1.9.0
+	github.com/containernetworking/plugins v1.9.1
 	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/cri-o/cri-o v1.34.0
 	github.com/docker/go-units v0.5.0
