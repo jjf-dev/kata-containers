@@ -11,7 +11,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 oci-spec.workspace = true
-caps = "0.5.0"
+caps = "0.5.6"
 nix.workspace = true
 scopeguard.workspace = true
 capctl.workspace = true
