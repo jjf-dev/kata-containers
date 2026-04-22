@@ -121,6 +121,26 @@ def outer_docker_device_args() -> list[str]:
     return args
 
 
+def kernel_developer_cache_mount_args() -> list[str]:
+    args: list[str] = []
+    cache_mounts = (
+        ("KATA_DOC_TEST_NIX_DIR", "/nix"),
+        ("KATA_DOC_TEST_CARGO_HOME", "/root/.cargo"),
+        ("KATA_DOC_TEST_RUSTUP_HOME", "/root/.rustup"),
+    )
+
+    for env_name, container_path in cache_mounts:
+        host_path = os.environ.get(env_name)
+        if not host_path:
+            continue
+
+        host_dir = pathlib.Path(host_path)
+        host_dir.mkdir(parents=True, exist_ok=True)
+        args.extend(["-v", f"{host_dir.resolve()}:{container_path}"])
+
+    return args
+
+
 class DockerShell:
     def __init__(self, name: str, docker_args: list[str], transcript_path: pathlib.Path) -> None:
         self.name = name
@@ -359,6 +379,7 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
             "--tmpfs",
             "/var/lib/containerd:exec,mode=755,size=8g",
             *outer_docker_env_args(),
+            *kernel_developer_cache_mount_args(),
             "-v",
             f"{args.asterinas_dir.resolve()}:/root/asterinas",
             "-v",
