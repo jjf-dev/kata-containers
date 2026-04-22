@@ -39,6 +39,7 @@ jobs:
       docker_image_version: ${{ steps.resolve.outputs.docker_image_version }}
       kata_static_tarball_release_repo: ${{ steps.resolve.outputs.kata_static_tarball_release_repo }}
       kata_static_tarball_url: ${{ steps.resolve.outputs.kata_static_tarball_url }}
+      kata_static_tarball_sha256: ${{ steps.resolve.outputs.kata_static_tarball_sha256 }}
       should_push: ${{ steps.resolve.outputs.should_push }}
     steps:
       - name: Resolve Publish Inputs
@@ -67,6 +68,27 @@ jobs:
           image_repository="${WORKFLOW_IMAGE_REPOSITORY:-${DEFAULT_IMAGE_REPOSITORY}}"
           kata_static_tarball_release_repo="${WORKFLOW_RELEASE_REPO:-${GITHUB_REPOSITORY}}"
           kata_static_tarball_url="${WORKFLOW_STATIC_TARBALL_URL:-}"
+          kata_static_tarball_sha256=
+          if [ -z "${kata_static_tarball_url}" ]; then
+            kata_static_tarball_url="$(
+              gh api "repos/${kata_static_tarball_release_repo}/releases/latest" --jq '
+                .assets[]
+                | select(.name | test("^kata-static-.*-asterinas-amd64\\.tar\\.zst$"))
+                | .browser_download_url
+              ' | head -n 1
+            )"
+          fi
+          test -n "${kata_static_tarball_url}"
+          kata_static_tarball_name="${kata_static_tarball_url##*/}"
+          kata_static_tarball_sha256="$(
+            gh api "repos/${kata_static_tarball_release_repo}/releases/latest" --jq '
+              .assets[]
+              | select(.name | test("^kata-static-.*-asterinas-amd64\\.SHA256SUMS$"))
+              | .browser_download_url
+            ' | head -n 1 |
+            xargs curl -fsSL |
+            awk -v asset_name="${kata_static_tarball_name}" '$2 == asset_name { print $1; exit }'
+          )"
           should_push=false
 
           if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
@@ -84,6 +106,7 @@ jobs:
           echo "docker_image_version=${docker_image_version}" >> "${GITHUB_OUTPUT}"
           echo "kata_static_tarball_release_repo=${kata_static_tarball_release_repo}" >> "${GITHUB_OUTPUT}"
           echo "kata_static_tarball_url=${kata_static_tarball_url}" >> "${GITHUB_OUTPUT}"
+          echo "kata_static_tarball_sha256=${kata_static_tarball_sha256}" >> "${GITHUB_OUTPUT}"
           echo "should_push=${should_push}" >> "${GITHUB_OUTPUT}"
 
           {
@@ -99,6 +122,7 @@ jobs:
             else
               echo "- Explicit Kata tarball URL: not set"
             fi
+            echo "- Kata tarball SHA256: \`${kata_static_tarball_sha256}\`"
             echo "- Push enabled: \`${should_push}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -145,6 +169,7 @@ jobs:
             ASTERINAS_BASE_IMAGE=${{ env.ASTERINAS_BASE_IMAGE }}
             KATA_STATIC_TARBALL_RELEASE_REPO=${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_release_repo }}
             KATA_STATIC_TARBALL_URL=${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_url }}
+            KATA_STATIC_TARBALL_SHA256=${{ needs.resolve-upstream-asterinas-image.outputs.kata_static_tarball_sha256 }}
             ASTERINAS_RELEASE_VERSION=${{ needs.resolve-upstream-asterinas-image.outputs.asterinas_version }}
             ASTERINAS_DOCKER_IMAGE_VERSION=${{ needs.resolve-upstream-asterinas-image.outputs.docker_image_version }}
 
