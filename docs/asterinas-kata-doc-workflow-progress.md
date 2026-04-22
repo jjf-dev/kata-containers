@@ -42,6 +42,8 @@
   - the kernel-developer workflow path exports `KATA_STATIC_TARBALL_RELEASE_REPO=${GITHUB_REPOSITORY}` so `tools/kata/kata_env.sh install` validates this repository's published Asterinas Kata release assets instead of defaulting to upstream `kata-containers/kata-containers`
   - the first GitHub dispatch attempt exposed a GitHub expression-validation issue: `runner.temp` is not accepted in this workflow's job-level `env`, so the log directory paths were normalized to plain `/tmp/...`
   - the first push run also showed that `/dev/vsock` is not guaranteed on GitHub-hosted runners, while `/dev/kvm`, `/dev/vhost-net`, and `/dev/vhost-vsock` are present; the workflow and `pexpect` driver now treat `/dev/vsock` as optional instead of mandatory
+  - based on user feedback, the `pexpect` driver now streams child output to stdout and prints explicit phase markers before long-running commands such as `kata_env.sh install`, `nerdctl run`, and `make kernel`
+  - the guest-entry helper now fails fast when `nerdctl run -it ...` falls back to the outer shell instead of opening the inner guest shell, so proxy/image failures no longer look like a generic hang
 - Next steps:
   - run a final quick local end-user replay after the latest script cleanup
   - static-check the new workflow and script changes

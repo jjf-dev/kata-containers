@@ -27,6 +27,20 @@ class ScenarioError(RuntimeError):
     pass
 
 
+class TeeWriter:
+    def __init__(self, *streams) -> None:
+        self.streams = streams
+
+    def write(self, data: str) -> None:
+        for stream in self.streams:
+            stream.write(data)
+            stream.flush()
+
+    def flush(self) -> None:
+        for stream in self.streams:
+            stream.flush()
+
+
 def strip_terminal_control_sequences(text: str) -> str:
     return ANSI_ESCAPE_RE.sub("", text).replace("\r", "")
 
@@ -115,6 +129,7 @@ class DockerShell:
         self.child: pexpect.spawn | None = None
         self.log_handle = None
         self.prompt = OUTER_PROMPT
+        self.stream_output = os.environ.get("KATA_DOC_TEST_STREAM_OUTPUT", "1") not in {"0", "false", "FALSE", "no", "NO"}
 
     def start(self) -> "DockerShell":
         self.transcript_path.parent.mkdir(parents=True, exist_ok=True)
@@ -133,7 +148,10 @@ class DockerShell:
             echo=False,
             timeout=60,
         )
-        self.child.logfile_read = self.log_handle
+        if self.stream_output:
+            self.child.logfile_read = TeeWriter(self.log_handle, sys.stdout)
+        else:
+            self.child.logfile_read = self.log_handle
         self.child.setwinsize(60, 200)
         self.child.expect(r"[#$] ", timeout=120)
         self.set_prompt(OUTER_PROMPT)
@@ -176,7 +194,11 @@ class DockerShell:
     def enter_guest(self, command: str, timeout: int = 900) -> None:
         assert self.child is not None
         self.child.sendline(command)
-        self.child.expect(r"[#$] ", timeout=timeout)
+        match_index = self.child.expect([re.escape(OUTER_PROMPT), r"[#$] "], timeout=timeout)
+        if match_index == 0:
+            self.prompt = OUTER_PROMPT
+            failure_output = clean_command_output(command, self.child.before)
+            raise ScenarioError(f"Guest shell did not start successfully for command: {command}\n{failure_output}")
         self.set_prompt(GUEST_PROMPT)
 
     def exit_guest(self) -> None:
@@ -192,7 +214,12 @@ def require_paths(paths: list[pathlib.Path]) -> None:
         raise ScenarioError(f"Missing required path(s): {', '.join(missing_paths)}")
 
 
+def announce(message: str) -> None:
+    print(message, flush=True)
+
+
 def run_guest_workload(shell: DockerShell, workload_image: str, host_proc_version: str, container_name: str = "foo") -> tuple[str, str]:
+    announce(f"[guest] launching workload container {container_name} from {workload_image}")
     shell.run(f"nerdctl rm -f {shlex.quote(container_name)} >/dev/null 2>&1 || true", check=False)
     shell.enter_guest(
         " ".join(
@@ -216,6 +243,7 @@ def run_guest_workload(shell: DockerShell, workload_image: str, host_proc_versio
     guest_proc_version = shell.run("cat /proc/version")
     alpine_release = shell.run("cat /etc/alpine-release")
     shell.exit_guest()
+    announce(f"[guest] removing workload container {container_name}")
     shell.run(f"nerdctl rm -f {shlex.quote(container_name)}")
 
     if guest_proc_version.strip() == host_proc_version.strip():
@@ -252,16 +280,18 @@ def run_end_user_scenario(args: argparse.Namespace) -> pathlib.Path:
     ).start()
 
     try:
-        print(f"[end-user] using outer image: {args.kata_image}")
+        announce(f"[end-user] using outer image: {args.kata_image}")
         host_proc_version = shell.run("cat /proc/version")
         shell.run("cd /root/asterinas")
+        announce("[end-user] starting Kata background services")
         shell.run("./tools/kata/kata_services.sh start", timeout=300)
         status_output = shell.run("./tools/kata/kata_services.sh status")
         if "Kata services are running." not in status_output:
             raise ScenarioError(f"Unexpected service status output:\n{status_output}")
         guest_proc_version, alpine_release = run_guest_workload(shell, args.workload_image, host_proc_version)
-        print(f"[end-user] guest /proc/version: {guest_proc_version}")
-        print(f"[end-user] alpine release: {alpine_release}")
+        announce(f"[end-user] guest /proc/version: {guest_proc_version}")
+        announce(f"[end-user] alpine release: {alpine_release}")
+        announce("[end-user] stopping Kata background services")
         shell.run("./tools/kata/kata_services.sh stop", timeout=300)
         return transcript_path
     finally:
@@ -301,11 +331,13 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
     ).start()
 
     try:
-        print(f"[kernel-developer] using outer image: {args.asterinas_image}")
-        print(f"[kernel-developer] mounted Asterinas tree: {args.asterinas_dir}")
+        announce(f"[kernel-developer] using outer image: {args.asterinas_image}")
+        announce(f"[kernel-developer] mounted Asterinas tree: {args.asterinas_dir}")
         host_proc_version = shell.run("cat /proc/version")
         shell.run("test -d /root/kata-containers/tools/kata")
+        announce("[kernel-developer] running tools/kata/kata_env.sh install")
         shell.run("./tools/kata/kata_env.sh install", timeout=3600)
+        announce("[kernel-developer] starting Kata background services")
         shell.run("./tools/kata/kata_services.sh start", timeout=300)
         status_output = shell.run("./tools/kata/kata_services.sh status")
         if "Kata services are running." not in status_output:
@@ -316,10 +348,12 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
             host_proc_version,
             "foo",
         )
-        print(f"[kernel-developer] packaged guest /proc/version: {packaged_guest_proc_version}")
-        print(f"[kernel-developer] packaged alpine release: {packaged_alpine_release}")
+        announce(f"[kernel-developer] packaged guest /proc/version: {packaged_guest_proc_version}")
+        announce(f"[kernel-developer] packaged alpine release: {packaged_alpine_release}")
+        announce("[kernel-developer] building local kernel with make kernel BOOT_METHOD=qemu-direct")
         shell.run("cd /root/asterinas && make kernel BOOT_METHOD=qemu-direct", timeout=7200)
         shell.run("test -f /root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf")
+        announce("[kernel-developer] switching Kata to the locally built kernel")
         shell.run(
             "sed -i 's#^kernel = \".*\"#kernel = \"/root/asterinas/target/osdk/aster-kernel-osdk-bin.qemu_elf\"#' "
             "/etc/kata-containers/configuration.toml"
@@ -334,8 +368,9 @@ def run_kernel_developer_scenario(args: argparse.Namespace) -> pathlib.Path:
             host_proc_version,
             "foo",
         )
-        print(f"[kernel-developer] local-kernel guest /proc/version: {local_guest_proc_version}")
-        print(f"[kernel-developer] local-kernel alpine release: {local_alpine_release}")
+        announce(f"[kernel-developer] local-kernel guest /proc/version: {local_guest_proc_version}")
+        announce(f"[kernel-developer] local-kernel alpine release: {local_alpine_release}")
+        announce("[kernel-developer] stopping Kata background services")
         shell.run("./tools/kata/kata_services.sh stop", timeout=300)
         return transcript_path
     finally:
@@ -390,18 +425,18 @@ def main() -> int:
         if args.scenario in {"kernel-developer", "all"}:
             transcripts.append(run_kernel_developer_scenario(args))
     except Exception as error:
-        print(f"interactive_doc_test failed: {error}", file=sys.stderr)
+        announce(f"interactive_doc_test failed: {error}")
         if transcripts:
-            print("available transcript(s):", file=sys.stderr)
+            announce("available transcript(s):")
             for transcript in transcripts:
-                print(f"  - {transcript}", file=sys.stderr)
+                announce(f"  - {transcript}")
         else:
-            print(f"transcript directory: {args.log_dir}", file=sys.stderr)
+            announce(f"transcript directory: {args.log_dir}")
         return 1
 
-    print("interactive_doc_test passed")
+    announce("interactive_doc_test passed")
     for transcript in transcripts:
-        print(f"transcript: {transcript}")
+        announce(f"transcript: {transcript}")
     return 0
 
 
